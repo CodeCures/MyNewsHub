@@ -1,0 +1,88 @@
+services:
+  # PHP Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mynewshub-app
+    restart: unless-stopped
+    volumes:
+      # Bind mount source code (real-time sync)
+      - ./app:/var/www/html/app:cached
+      - ./routes:/var/www/html/routes:cached
+      - ./config:/var/www/html/config:cached
+      - ./database:/var/www/html/database:cached
+      - ./resources:/var/www/html/resources:cached
+      - ./bootstrap/app.php:/var/www/html/bootstrap/app.php:cached
+      - ./bootstrap/providers.php:/var/www/html/bootstrap/providers.php:cached
+      - ./.env:/var/www/html/.env:cached
+      # Use named volumes for heavy I/O (fast performance)
+      - vendor:/var/www/html/vendor
+      - storage:/var/www/html/storage
+      - bootstrap-cache:/var/www/html/bootstrap/cache
+      - ./docker/php/local.ini:/usr/local/etc/php/conf.d/local.ini
+    networks:
+      - mynewshub-network
+    depends_on:
+      - db
+    environment:
+      - DB_HOST=db
+      - DB_DATABASE=${DB_DATABASE}
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+
+  # Nginx Web Server
+  webserver:
+    image: nginx:alpine
+    container_name: mynewshub-webserver
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      # Nginx only needs public folder (fast named volume)
+      - ./public:/var/www/html/public:ro,cached
+      - vendor:/var/www/html/vendor:ro
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
+    networks:
+      - mynewshub-network
+    depends_on:
+      - app
+
+  # MySQL Database
+  db:
+    image: mysql:8.0
+    container_name: mynewshub-db
+    restart: unless-stopped
+    environment:
+      - MYSQL_DATABASE=${DB_DATABASE}
+      - MYSQL_ROOT_PASSWORD=${DB_PASSWORD}
+      - MYSQL_PASSWORD=${DB_PASSWORD}
+      - MYSQL_USER=${DB_USERNAME}
+    volumes:
+      - mynewshub-data:/var/lib/mysql
+    networks:
+      - mynewshub-network
+    ports:
+      - "13306:3306"
+
+  # Redis for Cache and Queue
+  redis:
+    image: redis:alpine
+    container_name: mynewshub-redis
+    restart: unless-stopped
+    networks:
+      - mynewshub-network
+    ports:
+      - "6379:6379"
+
+# Networks
+networks:
+  mynewshub-network:
+    driver: bridge
+
+# Volumes
+volumes:
+  mynewshub-data:
+  vendor:
+  storage:
+  bootstrap-cache:
