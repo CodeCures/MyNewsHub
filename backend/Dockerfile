@@ -4,6 +4,7 @@ WORKDIR /app
 
 # Install system dependencies (Alpine uses apk, not apt-get)
 RUN apk add --no-cache \
+    bash \
     git \
     curl \
     libpng-dev \
@@ -29,11 +30,6 @@ COPY . /app
 
 # Install dependencies
 RUN composer install --no-interaction --no-dev --optimize-autoloader
-
-# Cache Laravel configuration for production
-RUN php artisan config:cache \
-    && php artisan route:cache \
-    && php artisan view:cache
 
 # Set permissions
 RUN chown -R www-data:www-data /app \
