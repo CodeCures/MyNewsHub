@@ -1,0 +1,100 @@
+services:
+  # PHP Application
+  app:
+    image: mynewshub/api:staging
+    container_name: mynewshub-app-staging
+    restart: unless-stopped
+    volumes:
+      # Only mount storage for user uploads and logs
+      - storage:/var/www/html/storage
+    networks:
+      - mynewshub-network
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      - APP_ENV=staging
+      - APP_DEBUG=false
+      - DB_HOST=db
+      - DB_DATABASE=${DB_DATABASE:-mynewshub_staging}
+      - DB_USERNAME=${DB_USERNAME:-mynewshub}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - REDIS_HOST=redis
+    healthcheck:
+      test: ["CMD", "php", "-v"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Nginx Web Server
+  webserver:
+    image: mynewshub/nginx:staging
+    build:
+      context: .
+      dockerfile: Dockerfile.nginx
+    container_name: mynewshub-webserver-staging
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    networks:
+      - mynewshub-network
+    depends_on:
+      - app
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # MySQL Database
+  db:
+    image: mysql:8.0
+    container_name: mynewshub-db-staging
+    restart: unless-stopped
+    environment:
+      - MYSQL_DATABASE=${DB_DATABASE:-mynewshub_staging}
+      - MYSQL_ROOT_PASSWORD=${DB_PASSWORD}
+      - MYSQL_PASSWORD=${DB_PASSWORD}
+      - MYSQL_USER=${DB_USERNAME:-mynewshub}
+    volumes:
+      - mynewshub-data:/var/lib/mysql
+    networks:
+      - mynewshub-network
+    ports:
+      - "13306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # Redis for Cache and Queue
+  redis:
+    image: redis:alpine
+    container_name: mynewshub-redis-staging
+    restart: unless-stopped
+    networks:
+      - mynewshub-network
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+# Networks
+networks:
+  mynewshub-network:
+    driver: bridge
+
+# Volumes
+volumes:
+  mynewshub-data:
+    driver: local
+  storage:
+    driver: local
