@@ -1,6 +1,7 @@
 services:
   # PHP Application
   app:
+    image: mynewshub/api:latest
     build:
       context: .
       dockerfile: Dockerfile
@@ -8,13 +9,15 @@ services:
     restart: unless-stopped
     volumes:
       # Bind mount source code (real-time sync)
+      - ./artisan:/var/www/html/artisan:cached
       - ./app:/var/www/html/app:cached
       - ./routes:/var/www/html/routes:cached
       - ./config:/var/www/html/config:cached
       - ./database:/var/www/html/database:cached
       - ./resources:/var/www/html/resources:cached
-      - ./bootstrap/app.php:/var/www/html/bootstrap/app.php:cached
-      - ./bootstrap/providers.php:/var/www/html/bootstrap/providers.php:cached
+      - ./bootstrap:/var/www/html/bootstrap:cached
+      - ./public:/var/www/html/public:cached
+      - ./.env.example:/var/www/html/.env.example:cached
       - ./.env:/var/www/html/.env:cached
       # Use named volumes for heavy I/O (fast performance)
       - vendor:/var/www/html/vendor
@@ -25,11 +28,14 @@ services:
       - mynewshub-network
     depends_on:
       - db
+      - redis
     environment:
+      - APP_ENV=${APP_ENV:-local}
       - DB_HOST=db
-      - DB_DATABASE=${DB_DATABASE}
-      - DB_USERNAME=${DB_USERNAME}
-      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_DATABASE=${DB_DATABASE:-mynewshub}
+      - DB_USERNAME=${DB_USERNAME:-mynewshub}
+      - DB_PASSWORD=${DB_PASSWORD:-password}
+      - REDIS_HOST=redis
 
   # Nginx Web Server
   webserver:
