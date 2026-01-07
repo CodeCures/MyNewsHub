@@ -1,3 +1,28 @@
+x-common-volumes: &common-volumes
+  - ./artisan:/var/www/html/artisan:cached
+  - ./composer.json:/var/www/html/composer.json:cached
+  - ./composer.lock:/var/www/html/composer.lock:cached
+  - ./app:/var/www/html/app:cached
+  - ./routes:/var/www/html/routes:cached
+  - ./config:/var/www/html/config:cached
+  - ./database:/var/www/html/database:cached
+  - ./resources:/var/www/html/resources:cached
+  - ./bootstrap:/var/www/html/bootstrap:cached
+  - ./public:/var/www/html/public:cached
+  - ./.env.example:/var/www/html/.env.example:cached
+  - ./.env:/var/www/html/.env:cached
+  - vendor:/var/www/html/vendor
+  - storage:/var/www/html/storage
+  - bootstrap-cache:/var/www/html/bootstrap/cache
+
+x-app-environment: &app-environment
+  APP_ENV: ${APP_ENV:-local}
+  DB_HOST: db
+  DB_DATABASE: ${DB_DATABASE:-mynewshub}
+  DB_USERNAME: ${DB_USERNAME:-mynewshub}
+  DB_PASSWORD: ${DB_PASSWORD:-password}
+  REDIS_HOST: redis
+
 services:
   # PHP Application
   app:
@@ -8,8 +33,9 @@ services:
     container_name: mynewshub-app
     restart: unless-stopped
     volumes:
-      # Bind mount source code (real-time sync)
       - ./artisan:/var/www/html/artisan:cached
+      - ./composer.json:/var/www/html/composer.json:cached
+      - ./composer.lock:/var/www/html/composer.lock:cached
       - ./app:/var/www/html/app:cached
       - ./routes:/var/www/html/routes:cached
       - ./config:/var/www/html/config:cached
@@ -19,7 +45,6 @@ services:
       - ./public:/var/www/html/public:cached
       - ./.env.example:/var/www/html/.env.example:cached
       - ./.env:/var/www/html/.env:cached
-      # Use named volumes for heavy I/O (fast performance)
       - vendor:/var/www/html/vendor
       - storage:/var/www/html/storage
       - bootstrap-cache:/var/www/html/bootstrap/cache
@@ -27,15 +52,26 @@ services:
     networks:
       - mynewshub-network
     depends_on:
-      - db
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
     environment:
-      - APP_ENV=${APP_ENV:-local}
-      - DB_HOST=db
-      - DB_DATABASE=${DB_DATABASE:-mynewshub}
-      - DB_USERNAME=${DB_USERNAME:-mynewshub}
-      - DB_PASSWORD=${DB_PASSWORD:-password}
-      - REDIS_HOST=redis
+      <<: *app-environment
+    healthcheck:
+      test: ["CMD", "php", "artisan", "inspire"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
 
   # Nginx Web Server
   webserver:
@@ -52,7 +88,22 @@ services:
     networks:
       - mynewshub-network
     depends_on:
-      - app
+      app:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/api/health", "||", "exit", "1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 128M
+        reservations:
+          cpus: '0.25'
+          memory: 64M
 
   # MySQL Database
   db:
@@ -70,6 +121,20 @@ services:
       - mynewshub-network
     ports:
       - "13306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
 
   # Redis for Cache and Queue
   redis:
@@ -78,8 +143,87 @@ services:
     restart: unless-stopped
     networks:
       - mynewshub-network
-    ports:
-      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+
+  # Queue Worker
+  queue-worker:
+    image: mynewshub/api:latest
+    container_name: mynewshub-queue-worker
+    restart: unless-stopped
+    entrypoint: []
+    command: php artisan queue:work redis --queue=scraping,default --sleep=3 --tries=3 --max-jobs=1000
+    volumes: *common-volumes
+    networks:
+      - mynewshub-network
+    depends_on:
+      app:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      <<: *app-environment
+    healthcheck:
+      test: ["CMD-SHELL", "ps aux | grep 'queue:work' | grep -v grep || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+
+  # Scheduler (runs scheduled tasks)
+  scheduler:
+    image: mynewshub/api:latest
+    container_name: mynewshub-scheduler
+    restart: unless-stopped
+    entrypoint: []
+    command: php artisan schedule:work
+    volumes: *common-volumes
+    networks:
+      - mynewshub-network
+    depends_on:
+      app:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      <<: *app-environment
+    healthcheck:
+      test: ["CMD-SHELL", "ps aux | grep 'schedule:work' | grep -v grep || exit 1"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
 
 # Networks
 networks:
