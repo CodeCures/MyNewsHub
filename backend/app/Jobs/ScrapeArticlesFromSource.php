@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Models\Source;
 use App\Services\News\NewsAggregatorService;
+use Illuminate\Bus\Batchable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -14,7 +15,7 @@ use Throwable;
 
 class ScrapeArticlesFromSource implements ShouldQueue
 {
-    use Queueable, InteractsWithQueue, SerializesModels;
+    use Queueable, InteractsWithQueue, SerializesModels, Batchable;
 
     public $tries = 3;
     public $maxExceptions = 3;
