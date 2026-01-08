@@ -1,0 +1,345 @@
+### MyNewsHub API Tests
+### Base URL: http://localhost:8080/api
+
+# ============================================
+# Variables
+# ============================================
+@baseUrl = http://localhost:8080/api
+@contentType = application/json
+
+# User credentials
+@userEmail = user@example.com
+@userPassword = password
+
+# Admin credentials
+@adminEmail = admin@mynewshub.com
+@adminPassword = password
+
+# Tokens (will be set after login)
+@userToken =
+@adminToken =898b2cb7-cb53-4c6e-bf60-583f5c1fde30|BEN6EcBc4XsQi81WpuZzmyrISZ7TS19wIJ8lEcEb57c9cfab
+
+
+# ============================================
+# 1. AUTHENTICATION ENDPOINTS
+# ============================================
+
+### 1.1 Register New User
+# @name registerUser
+POST {{baseUrl}}/auth/register
+Content-Type: {{contentType}}
+Accept: {{contentType}}
+
+{
+  "name": "Test User",
+  "email": "{{userEmail}}",
+  "password": "{{userPassword}}",
+  "password_confirmation": "{{userPassword}}"
+}
+
+### 1.2 Login as User
+# @name loginUser
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+Accept: {{contentType}}
+
+{
+  "email": "{{userEmail}}",
+  "password": "{{userPassword}}"
+}
+
+### 1.3 Login as Admin
+# @name loginAdmin
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+Accept: {{contentType}}
+
+{
+  "email": "{{adminEmail}}",
+  "password": "{{adminPassword}}"
+}
+
+### 1.4 Get Authenticated User Profile
+GET {{baseUrl}}/auth/user
+Accept: {{contentType}}
+Authorization: Bearer {{adminToken}}
+
+### 1.5 Logout User
+POST {{baseUrl}}/auth/logout
+Accept: {{contentType}}
+Authorization: Bearer {{userToken}}
+
+
+# ============================================
+# 2. ARTICLE ENDPOINTS (Public/Authenticated)
+# ============================================
+
+### 2.1 Get All Articles (Paginated)
+GET {{baseUrl}}/articles
+Accept: {{contentType}}
+
+### 2.2 Get All Articles - Page 2
+GET {{baseUrl}}/articles?page=2
+Accept: {{contentType}}
+
+### 2.3 Get Articles with Filters - Category
+GET {{baseUrl}}/articles?category=technology
+Accept: {{contentType}}
+
+### 2.4 Get Articles with Filters - Source
+GET {{baseUrl}}/articles?source=NewsAPI
+Accept: {{contentType}}
+
+### 2.5 Get Articles with Filters - Multiple Filters
+GET {{baseUrl}}/articles?category=technology&source=NewsAPI&from_date=2026-01-01
+Accept: {{contentType}}
+
+### 2.6 Get Articles with Filters - Date Range
+GET {{baseUrl}}/articles?from_date=2026-01-01&to_date=2026-01-08
+Accept: {{contentType}}
+
+### 2.7 Get Articles with Filters - Author
+GET {{baseUrl}}/articles?author=John%20Doe
+Accept: {{contentType}}
+
+### 2.8 Search Articles by Keyword
+GET {{baseUrl}}/articles?search=bitcoin
+Accept: {{contentType}}
+
+### 2.9 Get Single Article by ID (replace {id} with actual article ID)
+@articleId = 1
+GET {{baseUrl}}/articles/{{articleId}}
+Accept: {{contentType}}
+
+### 2.10 Get Personalized Feed (Requires Authentication)
+GET {{baseUrl}}/articles/personalized/feed
+Accept: {{contentType}}
+Authorization: Bearer {{userToken}}
+
+### 2.11 Get Personalized Feed with Pagination
+GET {{baseUrl}}/articles/personalized/feed?page=2
+Accept: {{contentType}}
+Authorization: Bearer {{userToken}}
+
+
+# ============================================
+# 3. USER PREFERENCES ENDPOINTS (Authenticated)
+# ============================================
+
+### 3.1 Get User Preferences
+GET {{baseUrl}}/preferences
+Accept: {{contentType}}
+Authorization: Bearer {{userToken}}
+
+### 3.2 Set User Preferences
+POST {{baseUrl}}/preferences
+Content-Type: {{contentType}}
+Accept: {{contentType}}
+Authorization: Bearer {{userToken}}
+
+{
+  "preferred_sources": ["NewsAPI", "The Guardian"],
+  "preferred_categories": ["technology", "business"],
+  "preferred_authors": ["John Doe", "Jane Smith"]
+}
+
+### 3.3 Update User Preferences (Partial)
+POST {{baseUrl}}/preferences
+Content-Type: {{contentType}}
+Accept: {{contentType}}
+Authorization: Bearer {{userToken}}
+
+{
+  "preferred_categories": ["technology", "science", "health"]
+}
+
+### 3.4 Clear User Preferences
+POST {{baseUrl}}/preferences
+Content-Type: {{contentType}}
+Accept: {{contentType}}
+Authorization: Bearer {{userToken}}
+
+{
+  "preferred_sources": [],
+  "preferred_categories": [],
+  "preferred_authors": []
+}
+
+
+# ============================================
+# 4. SOURCE ENDPOINTS (Admin Only)
+# ============================================
+
+### 4.1 Get All Sources (Admin)
+GET {{baseUrl}}/sources
+Accept: {{contentType}}
+Authorization: Bearer {{adminToken}}
+
+### 4.2 Create New Source (Admin)
+# @name createSource
+POST {{baseUrl}}/sources
+Content-Type: {{contentType}}
+Accept: {{contentType}}
+Authorization: Bearer {{adminToken}}
+
+{
+  "name": "Test News Source",
+  "api_endpoint": "https://api.testnews.com/articles",
+  "api_key": "test_api_key_12345",
+  "category": "general",
+  "is_active": true
+}
+
+### 4.3 Get Single Source (Admin) - replace {id} with actual source ID
+@sourceId = 1
+GET {{baseUrl}}/sources/{{sourceId}}
+Accept: {{contentType}}
+Authorization: Bearer {{adminToken}}
+
+### 4.4 Update Source (Admin) - replace {id} with actual source ID
+PUT {{baseUrl}}/sources/{{sourceId}}
+Content-Type: {{contentType}}
+Accept: {{contentType}}
+Authorization: Bearer {{adminToken}}
+
+{
+  "name": "Updated News Source",
+  "api_endpoint": "https://api.updated-news.com/articles",
+  "api_key": "updated_api_key_67890",
+  "category": "technology",
+  "is_active": true
+}
+
+### 4.5 Partially Update Source (Admin) - replace {id} with actual source ID
+PATCH {{baseUrl}}/sources/{{sourceId}}
+Content-Type: {{contentType}}
+Accept: {{contentType}}
+Authorization: Bearer {{adminToken}}
+
+{
+  "is_active": false
+}
+
+### 4.6 Delete Source (Admin) - replace {id} with actual source ID
+DELETE {{baseUrl}}/sources/{{sourceId}}
+Accept: {{contentType}}
+Authorization: Bearer {{adminToken}}
+
+
+# ============================================
+# 5. SCRAPING ENDPOINTS (Admin Only)
+# ============================================
+
+### 5.1 Trigger Manual Scrape (Admin)
+POST {{baseUrl}}/scrape
+Content-Type: {{contentType}}
+Accept: {{contentType}}
+Authorization: Bearer {{adminToken}}
+
+
+# ============================================
+# 6. ERROR SCENARIOS & EDGE CASES
+# ============================================
+
+### 6.1 Unauthorized - Get Preferences Without Token
+GET {{baseUrl}}/preferences
+Accept: {{contentType}}
+
+### 6.2 Unauthorized - Admin Endpoint with User Token
+GET {{baseUrl}}/sources
+Accept: {{contentType}}
+Authorization: Bearer {{userToken}}
+
+### 6.3 Invalid Token
+GET {{baseUrl}}/auth/user
+Accept: {{contentType}}
+Authorization: Bearer invalid_token_here
+
+### 6.4 Not Found - Invalid Article ID
+GET {{baseUrl}}/articles/99999999
+Accept: {{contentType}}
+
+### 6.5 Validation Error - Register with Missing Fields
+POST {{baseUrl}}/auth/register
+Content-Type: {{contentType}}
+Accept: {{contentType}}
+
+{
+  "email": "invalid-email",
+  "password": "123"
+}
+
+### 6.6 Validation Error - Create Source Missing Required Fields
+POST {{baseUrl}}/sources
+Content-Type: {{contentType}}
+Accept: {{contentType}}
+Authorization: Bearer {{adminToken}}
+
+{
+  "name": "Incomplete Source"
+}
+
+### 6.7 Login with Invalid Credentials
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+Accept: {{contentType}}
+
+{
+  "email": "wrong@example.com",
+  "password": "wrongpassword"
+}
+
+
+# ============================================
+# 7. ADVANCED FILTERING TESTS
+# ============================================
+
+### 7.1 Multiple Categories Filter
+GET {{baseUrl}}/articles?category=technology,business,science
+Accept: {{contentType}}
+
+### 7.2 Multiple Sources Filter
+GET {{baseUrl}}/articles?source=NewsAPI,The%20Guardian
+Accept: {{contentType}}
+
+### 7.3 Complex Combined Filters
+GET {{baseUrl}}/articles?search=AI&category=technology&from_date=2026-01-01&to_date=2026-01-08&source=NewsAPI
+Accept: {{contentType}}
+
+### 7.4 Pagination with Filters
+GET {{baseUrl}}/articles?category=technology&page=2&per_page=10
+Accept: {{contentType}}
+
+### 7.5 Sort by Published Date (if implemented)
+GET {{baseUrl}}/articles?sort=published_at&order=desc
+Accept: {{contentType}}
+
+
+# ============================================
+# NOTES & USAGE INSTRUCTIONS
+# ============================================
+
+# 1. After registering/logging in, copy the access_token from the response
+# 2. Update @userToken or @adminToken variables at the top
+# 3. Run requests by clicking "Send Request" link above each request
+# 4. Use Ctrl+Alt+R (Windows) or Cmd+Alt+R (Mac) to send request
+# 5. Variables are available for all requests in this file
+
+# Available Articles Filters:
+# - search: keyword search in title/content
+# - category: filter by category
+# - source: filter by source name
+# - author: filter by author name
+# - from_date: articles from this date (YYYY-MM-DD)
+# - to_date: articles until this date (YYYY-MM-DD)
+# - page: pagination page number
+# - per_page: items per page (default 15)
+
+# Admin Endpoints Require:
+# - Valid admin user login
+# - Admin role assigned via Spatie permissions
+# - Bearer token in Authorization header
+
+# Seeded Admin Credentials:
+# Email: admin@mynewshub.com
+# Password: password
