@@ -12,8 +12,19 @@ fi
 # Ensure we're in the right directory
 cd /var/www/html
 
+# Check if vendor directory is empty or missing and install dependencies
+if [ ! -d "/var/www/html/vendor" ] || [ -z "$(ls -A /var/www/html/vendor 2>/dev/null)" ]; then
+    echo "Vendor directory is empty. Installing dependencies..."
+    composer install --no-interaction --optimize-autoloader
+    echo "Dependencies installed."
+fi
+
 # Ensure storage and cache directories exist and have correct permissions
-mkdir -p /var/www/html/storage /var/www/html/bootstrap/cache
+mkdir -p /var/www/html/storage/framework/cache
+mkdir -p /var/www/html/storage/framework/sessions
+mkdir -p /var/www/html/storage/framework/views
+mkdir -p /var/www/html/storage/logs
+mkdir -p /var/www/html/bootstrap/cache
 chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache 2>/dev/null || true
 chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache 2>/dev/null || true
 
@@ -41,7 +52,9 @@ php artisan migrate --force
 
 # Clear caches
 echo "Clearing application caches..."
-php artisan optimize:clear
+php artisan config:clear || true
+php artisan route:clear || true
+php artisan cache:clear || true
 
 echo "Application is ready!"
 

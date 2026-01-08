@@ -15,13 +15,7 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // Seed sources with configurations
+        $this->call(AdminSeeder::class);
         $this->call(SourceSeeder::class);
-
-        // Optionally create test user
-        // User::factory()->create([
-        //     'name' => 'Test User',
-        //     'email' => 'test@example.com',
-        // ]);
     }
 }

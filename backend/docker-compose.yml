@@ -30,6 +30,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    pull_policy: build
     container_name: mynewshub-app
     restart: unless-stopped
     volumes:
@@ -160,6 +161,10 @@ services:
   # Queue Worker
   queue-worker:
     image: mynewshub/api:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    pull_policy: build
     container_name: mynewshub-queue-worker
     restart: unless-stopped
     entrypoint: []
@@ -194,6 +199,10 @@ services:
   # Scheduler (runs scheduled tasks)
   scheduler:
     image: mynewshub/api:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    pull_policy: build
     container_name: mynewshub-scheduler
     restart: unless-stopped
     entrypoint: []
