@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useAuthStore } from '@/store';
-import axios from 'axios';
+import httpClient from '@/lib/httpClient';
 import { format } from 'date-fns';
 import Link from 'next/link';
 import ConfirmDialog from '@/components/ConfirmDialog';
@@ -49,6 +49,15 @@ export default function ArticlesAdminPage() {
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   
+  // Filter states
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [selectedSource, setSelectedSource] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [sources, setSources] = useState<Source[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [showAlertDialog, setShowAlertDialog] = useState(false);
   const [alertConfig, setAlertConfig] = useState({
@@ -59,20 +68,63 @@ export default function ArticlesAdminPage() {
 
   useEffect(() => {
     if (token) {
+      fetchSources();
+      fetchCategories();
+    }
+  }, [token]);
+
+  // Debounce search input
+  useEffect(() => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    searchTimeoutRef.current = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 500);
+
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [search]);
+
+  useEffect(() => {
+    if (token) {
       fetchArticles(currentPage);
     }
-  }, [currentPage, token]);
+  }, [currentPage, debouncedSearch, selectedSource, selectedCategory, token]);
+
+  const fetchSources = async () => {
+    try {
+      const response = await httpClient.get('/admin/sources');
+      setSources(response.data.data || []);
+    } catch (err) {
+      console.error('Failed to fetch sources', err);
+    }
+  };
+
+  const fetchCategories = async () => {
+    try {
+      const response = await httpClient.get('/categories');
+      setCategories(response.data.data || []);
+    } catch (err) {
+      console.error('Failed to fetch categories', err);
+    }
+  };
 
   const fetchArticles = async (page: number) => {
     try {
       setIsLoading(true);
       setError(null);
-      const response = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/articles?page=${page}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      
+      const params = new URLSearchParams();
+      params.append('page', page.toString());
+      if (debouncedSearch) params.append('search', debouncedSearch);
+      if (selectedSource) params.append('source', selectedSource);
+      if (selectedCategory) params.append('category', selectedCategory);
+      
+      const response = await httpClient.get(`/articles?${params.toString()}`);
       setArticles(response.data.data || []);
       setMeta(response.data.meta || null);
     } catch (err: any) {
@@ -91,13 +143,7 @@ export default function ArticlesAdminPage() {
     setError(null);
 
     try {
-      const response = await axios.post(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/admin/scrape`,
-        {},
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      const response = await httpClient.post('/admin/scrape');
       
       setAlertConfig({
         title: 'Success',
@@ -152,22 +198,82 @@ export default function ArticlesAdminPage() {
 
   return (
     <div className="bg-white rounded-lg shadow">
-      <div className="p-6 border-b border-gray-200 flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Articles</h2>
-          <p className="text-gray-600 mt-1">
-            {meta ? `${meta.total} total articles` : 'Manage scraped articles'}
-          </p>
+      <div className="p-6 border-b border-gray-200">
+        <div className="flex justify-between items-center mb-4">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">Articles</h2>
+            <p className="text-gray-600 mt-1">
+              {meta ? `${meta.total} total articles` : 'Manage scraped articles'}
+            </p>
+          </div>
+          <button
+            onClick={() => setShowConfirmDialog(true)}
+            disabled={isScrapingLoading}
+            className={`px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition ${
+              isScrapingLoading ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
+          >
+            {isScrapingLoading ? 'Scraping...' : '🔄 Scrape Latest Articles'}
+          </button>
         </div>
-        <button
-          onClick={() => setShowConfirmDialog(true)}
-          disabled={isScrapingLoading}
-          className={`px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition ${
-            isScrapingLoading ? 'opacity-50 cursor-not-allowed' : ''
-          }`}
-        >
-          {isScrapingLoading ? 'Scraping...' : '🔄 Scrape Latest Articles'}
-        </button>
+
+        {/* Filters */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
+          <input
+            type="text"
+            placeholder="Search articles..."
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+          />
+          
+          <select
+            value={selectedSource}
+            onChange={(e) => {
+              setSelectedSource(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+          >
+            <option value="">All Sources</option>
+            {sources.map((source) => (
+              <option key={source.id} value={source.slug}>
+                {source.name}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={selectedCategory}
+            onChange={(e) => {
+              setSelectedCategory(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+          >
+            <option value="">All Categories</option>
+            {categories.map((category) => (
+              <option key={category.id} value={category.slug}>
+                {category.name}
+              </option>
+            ))}
+          </select>
+
+          <button
+            onClick={() => {
+              setSearch('');
+              setSelectedSource('');
+              setSelectedCategory('');
+              setCurrentPage(1);
+            }}
+            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition"
+          >
+            Clear Filters
+          </button>
+        </div>
       </div>
 
       {error && (
