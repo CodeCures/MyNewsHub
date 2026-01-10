@@ -29,7 +29,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/preferences', [UserPreferenceController::class, 'store']);
 
     // Admin-only routes
-    Route::middleware('role:admin')->prefix('')->group(function () {
+    Route::middleware('role:admin')->prefix('admin')->group(function () {
         Route::apiResource('sources', SourceController::class);
         Route::post('/scrape', [SourceController::class, 'scrape']);
     });
