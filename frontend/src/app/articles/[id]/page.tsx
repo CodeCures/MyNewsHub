@@ -86,9 +86,10 @@ export default function ArticleDetail() {
           </div>
 
           {currentArticle.description && (
-            <p className="text-xl text-gray-700 mb-6 leading-relaxed">
-              {currentArticle.description}
-            </p>
+            <div 
+              className="text-xl text-gray-700 mb-6 leading-relaxed"
+              dangerouslySetInnerHTML={{ __html: currentArticle.description }}
+            />
           )}
 
           {currentArticle.content && (
