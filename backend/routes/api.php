@@ -2,11 +2,12 @@
 
 use App\Http\Controllers\Api\ArticleController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\AuthorController;
+use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\SourceController;
 use App\Http\Controllers\Api\UserPreferenceController;
 use Illuminate\Support\Facades\Route;
 
-// Health check endpoint for Docker healthcheck
 Route::get('/health', function () {
     return response()->json(['status' => 'ok', 'timestamp' => now()]);
 });
@@ -18,6 +19,8 @@ Route::prefix('/auth')->group(function(){
 
 Route::get('/articles', [ArticleController::class, 'index']);
 Route::get('/articles/{article}', [ArticleController::class, 'show']);
+Route::get('/categories', [CategoryController::class, 'index']);
+Route::get('/authors', AuthorController::class);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/auth/logout', [AuthController::class, 'logout']);
