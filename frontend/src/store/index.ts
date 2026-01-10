@@ -57,12 +57,13 @@ interface ArticlesState {
   paginationData: PaginatedResponse<Article>['meta'] | null;
   personalizedFeed: Article[];
   personalizedPaginationData: PaginatedResponse<Article>['meta'] | null;
+  personalizedMessage: string | null;
   currentArticle: Article | null;
   isLoading: boolean;
   error: string | null;
   fetchArticles: (filters?: any) => Promise<void>;
   fetchArticle: (id: string) => Promise<void>;
-  fetchPersonalizedFeed: (page?: number) => Promise<void>;
+  fetchPersonalizedFeed: (page?: number, filters?: any) => Promise<void>;
   clearCurrentArticle: () => void;
 }
 
@@ -71,6 +72,7 @@ export const useArticlesStore = create<ArticlesState>((set) => ({
   paginationData: null,
   personalizedFeed: [],
   personalizedPaginationData: null,
+  personalizedMessage: null,
   currentArticle: null,
   isLoading: false,
   error: null,
@@ -96,12 +98,17 @@ export const useArticlesStore = create<ArticlesState>((set) => ({
     }
   },
 
-  fetchPersonalizedFeed: async (page = 1) => {
+  fetchPersonalizedFeed: async (page = 1, filters = {}) => {
     set({ isLoading: true, error: null });
     try {
-      const response = await articlesApi.getPersonalizedFeed(page);
-      const { data, meta } = response;
-      set({ personalizedFeed: data, personalizedPaginationData: meta, isLoading: false });
+      const response = await articlesApi.getPersonalizedFeed(page, filters);
+      const { data, meta, message } = response;
+      set({ 
+        personalizedFeed: data, 
+        personalizedPaginationData: meta || null, 
+        personalizedMessage: message || null,
+        isLoading: false
+      });
     } catch (error: any) {
       set({ error: error.message, isLoading: false });
     }
