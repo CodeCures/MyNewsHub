@@ -38,9 +38,9 @@ export const articlesApi = {
     return data.data;
   },
 
-  getPersonalizedFeed: async (page = 1) => {
+  getPersonalizedFeed: async (page = 1, filters: any = {}) => {
     const { data } = await httpClient.get<PaginatedResponse<Article>>('/articles/personalized/feed', {
-      params: { page },
+      params: { page, ...filters },
     });
     return data;
   },
