@@ -28,6 +28,22 @@ httpClient.interceptors.response.use(
         window.location.href = '/auth/login';
       }
     }
+    
+    // Handle validation errors (422)
+    if (error.response?.status === 422) {
+      const validationError = error.response.data;
+      if (validationError.message) {
+        error.message = validationError.message;
+      }
+      // Attach errors object for detailed handling
+      error.validationErrors = validationError.errors;
+    }
+    
+    // Handle other error responses
+    if (error.response?.data?.message) {
+      error.message = error.response.data.message;
+    }
+    
     return Promise.reject(error);
   }
 );

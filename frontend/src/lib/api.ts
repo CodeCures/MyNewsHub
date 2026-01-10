@@ -34,8 +34,8 @@ export const articlesApi = {
   },
 
   getArticle: async (id: string) => {
-    const { data } = await httpClient.get<Article>(`/articles/${id}`);
-    return data;
+    const { data } = await httpClient.get<{ data: Article }>(`/articles/${id}`);
+    return data.data;
   },
 
   getPersonalizedFeed: async (page = 1) => {

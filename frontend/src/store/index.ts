@@ -54,9 +54,9 @@ export const useAuthStore = create<AuthState>()(
 
 interface ArticlesState {
   articles: Article[];
-  paginationData: Omit<PaginatedResponse<Article>, 'data'> | null;
+  paginationData: PaginatedResponse<Article>['meta'] | null;
   personalizedFeed: Article[];
-  personalizedPaginationData: Omit<PaginatedResponse<Article>, 'data'> | null;
+  personalizedPaginationData: PaginatedResponse<Article>['meta'] | null;
   currentArticle: Article | null;
   isLoading: boolean;
   error: string | null;
@@ -79,8 +79,8 @@ export const useArticlesStore = create<ArticlesState>((set) => ({
     set({ isLoading: true, error: null });
     try {
       const response = await articlesApi.getArticles(filters);
-      const { data, ...pagination } = response;
-      set({ articles: data, paginationData: pagination, isLoading: false });
+      const { data, meta } = response;
+      set({ articles: data, paginationData: meta, isLoading: false });
     } catch (error: any) {
       set({ error: error.message, isLoading: false });
     }
@@ -100,8 +100,8 @@ export const useArticlesStore = create<ArticlesState>((set) => ({
     set({ isLoading: true, error: null });
     try {
       const response = await articlesApi.getPersonalizedFeed(page);
-      const { data, ...pagination } = response;
-      set({ personalizedFeed: data, personalizedPaginationData: pagination, isLoading: false });
+      const { data, meta } = response;
+      set({ personalizedFeed: data, personalizedPaginationData: meta, isLoading: false });
     } catch (error: any) {
       set({ error: error.message, isLoading: false });
     }
