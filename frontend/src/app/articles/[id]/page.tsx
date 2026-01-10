@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useArticlesStore } from '@/store';
 import { format } from 'date-fns';
@@ -12,10 +12,12 @@ export default function ArticleDetail() {
   const router = useRouter();
   const { currentArticle, isLoading, error, fetchArticle } = useArticlesStore();
   const articleId = params.id as string;
+  const hasFetched = useRef(false);
 
   useEffect(() => {
-    if (articleId) {
-      fetchArticle(parseInt(articleId));
+    if (articleId && !hasFetched.current) {
+      hasFetched.current = true;
+      fetchArticle(articleId);
     }
   }, [articleId, fetchArticle]);
 
@@ -24,7 +26,7 @@ export default function ArticleDetail() {
   }
 
   if (error) {
-    return <ErrorAlert message={error} onRetry={() => fetchArticle(parseInt(articleId))} />;
+    return <ErrorAlert message={error} onRetry={() => fetchArticle(articleId)} />;
   }
 
   if (!currentArticle) {
@@ -45,11 +47,11 @@ export default function ArticleDetail() {
 
       <article className="bg-white rounded-lg shadow-lg overflow-hidden">
         {currentArticle.image_url && (
-          <div className="relative h-96 w-full">
+          <div className="relative w-full">
             <img
               src={currentArticle.image_url}
               alt={currentArticle.title}
-              className="w-full h-full object-cover"
+              className="w-full h-auto"
             />
           </div>
         )}
@@ -57,9 +59,9 @@ export default function ArticleDetail() {
         <div className="p-8">
           <div className="flex items-center gap-4 mb-4">
             <span className="px-3 py-1 bg-blue-100 text-blue-800 text-sm font-medium rounded-full">
-              {currentArticle.category}
+              {typeof currentArticle.category === 'string' ? currentArticle.category : currentArticle.category?.name || 'Uncategorized'}
             </span>
-            <span className="text-gray-600 text-sm">{currentArticle.source}</span>
+            <span className="text-gray-600 text-sm">{typeof currentArticle.source === 'string' ? currentArticle.source : currentArticle.source?.name}</span>
           </div>
 
           <h1 className="text-4xl font-bold text-gray-900 mb-4">
@@ -72,14 +74,14 @@ export default function ArticleDetail() {
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
-                <span>{currentArticle.author}</span>
+                <span>{typeof currentArticle.author === 'string' ? currentArticle.author : currentArticle.author.name}</span>
               </div>
             )}
             <div className="flex items-center gap-2">
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
-              <span>{format(new Date(currentArticle.published_at), 'MMMM d, yyyy')}</span>
+              <span>{currentArticle.published_at ? format(new Date(currentArticle.published_at.replace(/\.\d{6}Z$/, 'Z')), 'MMMM d, yyyy') : 'Date unavailable'}</span>
             </div>
           </div>
 
@@ -90,11 +92,10 @@ export default function ArticleDetail() {
           )}
 
           {currentArticle.content && (
-            <div className="prose prose-lg max-w-none mb-8">
-              <p className="text-gray-800 leading-relaxed whitespace-pre-line">
-                {currentArticle.content}
-              </p>
-            </div>
+            <div 
+              className="prose prose-lg max-w-none mb-8 text-gray-800 leading-relaxed"
+              dangerouslySetInnerHTML={{ __html: currentArticle.content }}
+            />
           )}
 
           {currentArticle.url && (

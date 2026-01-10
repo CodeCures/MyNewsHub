@@ -21,7 +21,7 @@ export default function MyFeeds() {
       return;
     }
     fetchPersonalizedFeed(page);
-  }, [page, isAuthenticated, router, fetchPersonalizedFeed]);
+  }, [page, isAuthenticated, router]);
 
   const handlePageChange = (newPage: number) => {
     setPage(newPage);

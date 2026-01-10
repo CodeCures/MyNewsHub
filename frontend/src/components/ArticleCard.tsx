@@ -22,7 +22,7 @@ export default function ArticleCard({ article }: ArticleCardProps) {
         <div className="p-4">
           <div className="flex items-center gap-2 mb-2">
             <span className="text-xs px-2 py-1 bg-blue-100 text-blue-600 rounded-full">
-              {article.category}
+              {article.category?.name || 'Uncategorized'}
             </span>
             <span className="text-xs text-gray-500">{article.source_name}</span>
           </div>
@@ -31,7 +31,7 @@ export default function ArticleCard({ article }: ArticleCardProps) {
           </h3>
           <p className="text-gray-600 text-sm mb-3 line-clamp-3">{article.description}</p>
           <div className="flex items-center justify-between text-xs text-gray-500">
-            {article.author && <span>By {article.author}</span>}
+            {article.author && <span>By {typeof article.author === 'string' ? article.author : article.author.name}</span>}
             <span>{format(new Date(article.published_at), 'MMM dd, yyyy')}</span>
           </div>
         </div>

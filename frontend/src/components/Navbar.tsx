@@ -64,6 +64,16 @@ export default function Navbar() {
                 Preferences
               </Link>
             )}
+            {isAuthenticated && user?.roles?.includes('admin') && (
+              <Link
+                href="/admin/sources"
+                className={`${
+                  pathname.startsWith('/admin') ? 'text-blue-600' : 'text-gray-700'
+                } hover:text-blue-600 transition`}
+              >
+                Admin
+              </Link>
+            )}
           </div>
 
           <div className="hidden md:flex items-center space-x-4">

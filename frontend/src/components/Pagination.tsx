@@ -47,7 +47,7 @@ export default function Pagination({ currentPage, lastPage, onPageChange }: Pagi
       <button
         onClick={() => onPageChange(currentPage - 1)}
         disabled={currentPage === 1}
-        className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100 transition"
+        className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100 transition text-gray-700 font-medium"
       >
         Previous
       </button>
@@ -57,12 +57,12 @@ export default function Pagination({ currentPage, lastPage, onPageChange }: Pagi
           key={index}
           onClick={() => typeof page === 'number' && onPageChange(page)}
           disabled={page === '...'}
-          className={`px-4 py-2 border rounded-lg transition ${
+          className={`px-4 py-2 border rounded-lg transition font-medium ${
             page === currentPage
               ? 'bg-blue-600 text-white border-blue-600'
               : page === '...'
-              ? 'border-transparent cursor-default'
-              : 'border-gray-300 hover:bg-gray-100'
+              ? 'border-transparent cursor-default text-gray-400'
+              : 'border-gray-300 hover:bg-gray-100 text-gray-700'
           }`}
         >
           {page}
@@ -72,7 +72,7 @@ export default function Pagination({ currentPage, lastPage, onPageChange }: Pagi
       <button
         onClick={() => onPageChange(currentPage + 1)}
         disabled={currentPage === lastPage}
-        className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100 transition"
+        className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-100 transition text-gray-700 font-medium"
       >
         Next
       </button>
