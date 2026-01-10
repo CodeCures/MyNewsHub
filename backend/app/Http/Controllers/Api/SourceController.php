@@ -82,7 +82,7 @@ class SourceController extends Controller
      */
     public function scrape(): JsonResponse
     {
-        $activeSources = Source::whereIsActive(true)->get();
+        $activeSources = Source::whereSlug('guardian')->get();
 
         if ($activeSources->isEmpty()) {
             return response()->json([
@@ -91,7 +91,7 @@ class SourceController extends Controller
             ], 404);
         }
 
-    
+
         $jobs = $activeSources->map(function ($source) {
             return new ScrapeArticlesFromSource($source);
         })->toArray();
