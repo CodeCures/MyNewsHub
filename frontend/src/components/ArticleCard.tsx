@@ -29,7 +29,10 @@ export default function ArticleCard({ article }: ArticleCardProps) {
           <h3 className="text-xl font-semibold text-gray-900 mb-2 line-clamp-2 group-hover:text-blue-600 transition">
             {article.title}
           </h3>
-          <p className="text-gray-600 text-sm mb-3 line-clamp-3">{article.description}</p>
+          <p 
+            className="text-gray-600 text-sm mb-3 line-clamp-3"
+            dangerouslySetInnerHTML={{ __html: article.description }}
+          />
           <div className="flex items-center justify-between text-xs text-gray-500">
             {article.author && <span>By {typeof article.author === 'string' ? article.author : article.author.name}</span>}
             <span>{format(new Date(article.published_at), 'MMM dd, yyyy')}</span>
