@@ -82,7 +82,7 @@ class SourceController extends Controller
      */
     public function scrape(): JsonResponse
     {
-        $activeSources = Source::whereSlug('guardian')->get();
+        $activeSources = Source::whereIsActive(true)->get();
 
         if ($activeSources->isEmpty()) {
             return response()->json([
