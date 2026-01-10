@@ -3,6 +3,25 @@
 import { useEffect, useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore, usePreferencesStore } from '@/store';
+import httpClient from '@/lib/httpClient';
+import Select from 'react-select';
+
+interface Source {
+  id: number;
+  name: string;
+  slug: string;
+}
+
+interface Category {
+  id: number;
+  name: string;
+  slug: string;
+}
+
+interface SelectOption {
+  value: number | string;
+  label: string;
+}
 
 export default function Preferences() {
   const router = useRouter();
@@ -10,16 +29,20 @@ export default function Preferences() {
   const { preferences, isLoading, error, fetchPreferences, updatePreferences } = usePreferencesStore();
   
   const [formData, setFormData] = useState({
-    preferred_sources: [] as string[],
-    preferred_categories: [] as string[],
+    preferred_sources: [] as number[],
+    preferred_categories: [] as number[],
     preferred_authors: [] as string[],
   });
-  const [sourceInput, setSourceInput] = useState('');
-  const [authorInput, setAuthorInput] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
-
-  const categories = ['Technology', 'Business', 'Sports', 'Entertainment', 'Health', 'Science', 'General'];
+  
+  const [sources, setSources] = useState<Source[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [authors, setAuthors] = useState<string[]>([]);
+  
+  const [isLoadingSources, setIsLoadingSources] = useState(true);
+  const [isLoadingCategories, setIsLoadingCategories] = useState(true);
+  const [isLoadingAuthors, setIsLoadingAuthors] = useState(true);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -27,7 +50,47 @@ export default function Preferences() {
       return;
     }
     fetchPreferences();
-  }, [isAuthenticated, router, fetchPreferences]);
+    fetchSources();
+    fetchCategories();
+    fetchAuthors();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]);
+
+  const fetchSources = async () => {
+    try {
+      setIsLoadingSources(true);
+      const response = await httpClient.get('/admin/sources');
+      setSources(response.data.data || []);
+    } catch (err) {
+      console.error('Failed to fetch sources', err);
+    } finally {
+      setIsLoadingSources(false);
+    }
+  };
+
+  const fetchCategories = async () => {
+    try {
+      setIsLoadingCategories(true);
+      const response = await httpClient.get('/categories');
+      setCategories(response.data.data || []);
+    } catch (err) {
+      console.error('Failed to fetch categories', err);
+    } finally {
+      setIsLoadingCategories(false);
+    }
+  };
+
+  const fetchAuthors = async () => {
+    try {
+      setIsLoadingAuthors(true);
+      const response = await httpClient.get('/authors');
+      setAuthors(response.data.data || []);
+    } catch (err) {
+      console.error('Failed to fetch authors', err);
+    } finally {
+      setIsLoadingAuthors(false);
+    }
+  };
 
   useEffect(() => {
     if (preferences) {
@@ -39,46 +102,53 @@ export default function Preferences() {
     }
   }, [preferences]);
 
-  const toggleCategory = (category: string) => {
-    setFormData((prev) => ({
+  // Convert data to react-select options
+  const categoryOptions: SelectOption[] = categories.map(cat => ({
+    value: cat.id,
+    label: cat.name,
+  }));
+
+  const sourceOptions: SelectOption[] = sources.map(src => ({
+    value: src.id,
+    label: src.name,
+  }));
+
+  const authorOptions: SelectOption[] = authors.map(author => ({
+    value: author,
+    label: author,
+  }));
+
+  // Get selected values for react-select
+  const selectedCategories = categoryOptions.filter(opt => 
+    formData.preferred_categories.includes(opt.value as number)
+  );
+
+  const selectedSources = sourceOptions.filter(opt => 
+    formData.preferred_sources.includes(opt.value as number)
+  );
+
+  const selectedAuthors = authorOptions.filter(opt => 
+    formData.preferred_authors.includes(opt.value as string)
+  );
+
+  const handleCategoryChange = (selected: readonly SelectOption[]) => {
+    setFormData(prev => ({
       ...prev,
-      preferred_categories: prev.preferred_categories.includes(category)
-        ? prev.preferred_categories.filter((c) => c !== category)
-        : [...prev.preferred_categories, category],
+      preferred_categories: selected.map(opt => opt.value as number),
     }));
   };
 
-  const addSource = () => {
-    if (sourceInput.trim() && !formData.preferred_sources.includes(sourceInput.trim())) {
-      setFormData((prev) => ({
-        ...prev,
-        preferred_sources: [...prev.preferred_sources, sourceInput.trim()],
-      }));
-      setSourceInput('');
-    }
-  };
-
-  const removeSource = (source: string) => {
-    setFormData((prev) => ({
+  const handleSourceChange = (selected: readonly SelectOption[]) => {
+    setFormData(prev => ({
       ...prev,
-      preferred_sources: prev.preferred_sources.filter((s) => s !== source),
+      preferred_sources: selected.map(opt => opt.value as number),
     }));
   };
 
-  const addAuthor = () => {
-    if (authorInput.trim() && !formData.preferred_authors.includes(authorInput.trim())) {
-      setFormData((prev) => ({
-        ...prev,
-        preferred_authors: [...prev.preferred_authors, authorInput.trim()],
-      }));
-      setAuthorInput('');
-    }
-  };
-
-  const removeAuthor = (author: string) => {
-    setFormData((prev) => ({
+  const handleAuthorChange = (selected: readonly SelectOption[]) => {
+    setFormData(prev => ({
       ...prev,
-      preferred_authors: prev.preferred_authors.filter((a) => a !== author),
+      preferred_authors: selected.map(opt => opt.value as string),
     }));
   };
 
@@ -123,103 +193,54 @@ export default function Preferences() {
 
       <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-lg p-8 space-y-8">
         <div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Preferred Categories</h2>
-          <div className="flex flex-wrap gap-3">
-            {categories.map((category) => (
-              <button
-                key={category}
-                type="button"
-                onClick={() => toggleCategory(category)}
-                className={`px-4 py-2 rounded-lg font-medium transition ${
-                  formData.preferred_categories.includes(category)
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                {category}
-              </button>
-            ))}
-          </div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Preferred Sources</h2>
+          <Select
+            isMulti
+            options={sourceOptions}
+            value={selectedSources}
+            onChange={(selected) => handleSourceChange(selected as SelectOption[])}
+            placeholder="Search and select sources..."
+            className="text-gray-900"
+            classNamePrefix="select"
+            isClearable
+            isSearchable
+            isLoading={isLoadingSources}
+            noOptionsMessage={() => isLoadingSources ? 'Loading...' : 'No options'}
+          />
         </div>
 
         <div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Preferred Sources</h2>
-          <div className="flex gap-2 mb-3">
-            <input
-              type="text"
-              value={sourceInput}
-              onChange={(e) => setSourceInput(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addSource())}
-              placeholder="Enter source name (e.g., BBC News)"
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-            <button
-              type="button"
-              onClick={addSource}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-            >
-              Add
-            </button>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {formData.preferred_sources.map((source) => (
-              <div
-                key={source}
-                className="flex items-center gap-2 px-3 py-1 bg-blue-100 text-blue-800 rounded-full"
-              >
-                <span>{source}</span>
-                <button
-                  type="button"
-                  onClick={() => removeSource(source)}
-                  className="hover:text-blue-900"
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            ))}
-          </div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Preferred Categories</h2>
+          <Select
+            isMulti
+            options={categoryOptions}
+            value={selectedCategories}
+            onChange={(selected) => handleCategoryChange(selected as SelectOption[])}
+            placeholder="Search and select categories..."
+            className="text-gray-900"
+            classNamePrefix="select"
+            isClearable
+            isSearchable
+            isLoading={isLoadingCategories}
+            noOptionsMessage={() => isLoadingCategories ? 'Loading...' : 'No options'}
+          />
         </div>
 
         <div>
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Preferred Authors</h2>
-          <div className="flex gap-2 mb-3">
-            <input
-              type="text"
-              value={authorInput}
-              onChange={(e) => setAuthorInput(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addAuthor())}
-              placeholder="Enter author name"
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-            <button
-              type="button"
-              onClick={addAuthor}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-            >
-              Add
-            </button>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {formData.preferred_authors.map((author) => (
-              <div
-                key={author}
-                className="flex items-center gap-2 px-3 py-1 bg-green-100 text-green-800 rounded-full"
-              >
-                <span>{author}</span>
-                <button
-                  type="button"
-                  onClick={() => removeAuthor(author)}
-                  className="hover:text-green-900"
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            ))}
-          </div>
+          <Select
+            isMulti
+            options={authorOptions}
+            value={selectedAuthors}
+            onChange={(selected) => handleAuthorChange(selected as SelectOption[])}
+            placeholder="Search and select authors..."
+            className="text-gray-900"
+            classNamePrefix="select"
+            isClearable
+            isSearchable
+            isLoading={isLoadingAuthors}
+            noOptionsMessage={() => isLoadingAuthors ? 'Loading...' : 'No options'}
+          />
         </div>
 
         <div className="flex gap-4">
