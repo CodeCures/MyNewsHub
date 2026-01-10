@@ -1,158 +1,50 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback } from 'react';
-import { useAuthStore } from '@/store';
-import httpClient from '@/lib/httpClient';
-import { format } from 'date-fns';
+import { useArticles } from '@/hooks/useArticles';
+import { sourcesToOptions, categoriesToOptions } from '@/lib/utils/selectOptions';
+import { formatDate } from '@/lib/utils/format';
 import Link from 'next/link';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import AlertDialog from '@/components/AlertDialog';
-import type { Source, Category, Article, PaginationMeta } from '@/types';
+import Select from 'react-select';
 
 export default function ArticlesAdminPage() {
-  const { token } = useAuthStore();
-  const [articles, setArticles] = useState<Article[]>([]);
-  const [meta, setMeta] = useState<PaginationMeta | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isScrapingLoading, setIsScrapingLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  
-  // Filter states
-  const [search, setSearch] = useState('');
-  const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [selectedSource, setSelectedSource] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('');
-  const [sources, setSources] = useState<Source[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
-  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
-  const [showAlertDialog, setShowAlertDialog] = useState(false);
-  const [alertConfig, setAlertConfig] = useState({
-    title: '',
-    message: '',
-    variant: 'success' as 'success' | 'error' | 'info',
+  const {
+    articles,
+    meta,
+    isLoading,
+    isScrapingLoading,
+    error,
+    currentPage,
+    search,
+    selectedSource,
+    selectedCategory,
+    sources,
+    categories,
+    alertOpen,
+    alertMessage,
+    deleteConfirmOpen,
+    scrapeConfirmOpen,
+    setCurrentPage,
+    setSearch,
+    setSelectedSource,
+    setSelectedCategory,
+    setAlertOpen,
+    setDeleteConfirmOpen,
+    setScrapeConfirmOpen,
+    triggerScrape,
+    handleDelete,
+    clearFilters,
+    openDeleteDialog,
+  } = useArticles({
+    endpoint: '/articles',
+    enableFilters: true,
+    enableScraping: true,
+    enableDelete: true,
   });
 
-  useEffect(() => {
-    if (token) {
-      fetchSources();
-      fetchCategories();
-    }
-  }, [token]);
-
-  // Debounce search input
-  useEffect(() => {
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
-    }
-    searchTimeoutRef.current = setTimeout(() => {
-      setDebouncedSearch(search);
-    }, 500);
-
-    return () => {
-      if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current);
-      }
-    };
-  }, [search]);
-
-  useEffect(() => {
-    if (token) {
-      fetchArticles(currentPage);
-    }
-  }, [currentPage, debouncedSearch, selectedSource, selectedCategory, token]);
-
-  const fetchSources = async () => {
-    try {
-      const response = await httpClient.get('/admin/sources');
-      setSources(response.data.data || []);
-    } catch (err) {
-      console.error('Failed to fetch sources', err);
-    }
-  };
-
-  const fetchCategories = async () => {
-    try {
-      const response = await httpClient.get('/categories');
-      setCategories(response.data.data || []);
-    } catch (err) {
-      console.error('Failed to fetch categories', err);
-    }
-  };
-
-  const fetchArticles = async (page: number) => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      
-      const params = new URLSearchParams();
-      params.append('page', page.toString());
-      if (debouncedSearch) params.append('search', debouncedSearch);
-      if (selectedSource) params.append('source', selectedSource);
-      if (selectedCategory) params.append('category', selectedCategory);
-      
-      const response = await httpClient.get(`/articles?${params.toString()}`);
-      setArticles(response.data.data || []);
-      setMeta(response.data.meta || null);
-    } catch (err: any) {
-      const errorMessage = err.response?.data?.message || 'Failed to fetch articles';
-      setError(errorMessage);
-      setArticles([]);
-      setMeta(null);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const triggerScrape = async () => {
-    setShowConfirmDialog(false);
-    setIsScrapingLoading(true);
-    setError(null);
-
-    try {
-      const response = await httpClient.post('/admin/scrape');
-      
-      setAlertConfig({
-        title: 'Success',
-        message: response.data.message || 'Articles are being scraped. Please wait...',
-        variant: 'success',
-      });
-      setShowAlertDialog(true);
-      
-      setTimeout(() => {
-        fetchArticles(currentPage);
-      }, 5000);
-    } catch (err: any) {
-      const errorMessage = err.response?.data?.message || 'Failed to trigger scraping';
-      setAlertConfig({
-        title: 'Error',
-        message: errorMessage,
-        variant: 'error',
-      });
-      setShowAlertDialog(true);
-    } finally {
-      setIsScrapingLoading(false);
-    }
-  };
-
-  const getSourceName = (source: Source): string => {
-    return source?.name || 'Unknown';
-  };
-
-  const getCategoryName = (category: Category | null): string => {
-    return category?.name || '-';
-  };
-
-  const formatDate = (dateString: string): string => {
-    try {
-      const cleanDate = dateString.replace(/\.\d{6}Z$/, 'Z');
-      return format(new Date(cleanDate), 'MMM d, yyyy HH:mm');
-    } catch {
-      return 'Invalid date';
-    }
-  };
+  const sourceOptions = sourcesToOptions(sources);
+  const categoryOptions = categoriesToOptions(categories);
 
   if (isLoading && articles.length === 0) {
     return (
@@ -176,7 +68,7 @@ export default function ArticlesAdminPage() {
             </p>
           </div>
           <button
-            onClick={() => setShowConfirmDialog(true)}
+            onClick={() => setScrapeConfirmOpen(true)}
             disabled={isScrapingLoading}
             className={`px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition ${
               isScrapingLoading ? 'opacity-50 cursor-not-allowed' : ''
@@ -199,45 +91,36 @@ export default function ArticlesAdminPage() {
             className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
           />
           
-          <select
-            value={selectedSource}
-            onChange={(e) => {
-              setSelectedSource(e.target.value);
+          <Select
+            options={sourceOptions}
+            value={sourceOptions.find(opt => opt.value === selectedSource) || null}
+            onChange={(selected) => {
+              setSelectedSource(selected ? String(selected.value) : '');
               setCurrentPage(1);
             }}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
-          >
-            <option value="">All Sources</option>
-            {sources.map((source) => (
-              <option key={source.id} value={source.slug}>
-                {source.name}
-              </option>
-            ))}
-          </select>
+            placeholder="All Sources"
+            className="text-gray-900"
+            classNamePrefix="select"
+            isClearable
+            isSearchable
+          />
 
-          <select
-            value={selectedCategory}
-            onChange={(e) => {
-              setSelectedCategory(e.target.value);
+          <Select
+            options={categoryOptions}
+            value={categoryOptions.find(opt => opt.value === selectedCategory) || null}
+            onChange={(selected) => {
+              setSelectedCategory(selected ? String(selected.value) : '');
               setCurrentPage(1);
             }}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
-          >
-            <option value="">All Categories</option>
-            {categories.map((category) => (
-              <option key={category.id} value={category.slug}>
-                {category.name}
-              </option>
-            ))}
-          </select>
+            placeholder="All Categories"
+            className="text-gray-900"
+            classNamePrefix="select"
+            isClearable
+            isSearchable
+          />
 
           <button
-            onClick={() => {
-              setSearch('');
-              setSelectedSource('');
-              setSelectedCategory('');
-              setCurrentPage(1);
-            }}
+            onClick={clearFilters}
             className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition"
           >
             Clear Filters
@@ -273,7 +156,7 @@ export default function ArticlesAdminPage() {
             No articles have been scraped yet. Click the button below to fetch the latest articles.
           </p>
           <button
-            onClick={() => setShowConfirmDialog(true)}
+            onClick={() => setScrapeConfirmOpen(true)}
             disabled={isScrapingLoading}
             className={`px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition ${
               isScrapingLoading ? 'opacity-50 cursor-not-allowed' : ''
@@ -337,11 +220,11 @@ export default function ArticlesAdminPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                          {getSourceName(article.source)}
+                          {typeof article.source === 'string' ? article.source : article.source?.name}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {getCategoryName(article.category)}
+                        {typeof article.category === 'string' ? article.category : article.category?.name}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {formatDate(article.published_at)}
@@ -363,6 +246,13 @@ export default function ArticlesAdminPage() {
                         >
                           Source
                         </a>
+                        <span className="text-gray-300 mx-2">•</span>
+                        <button
+                          onClick={() => openDeleteDialog(Number(article.id))}
+                          className="text-red-600 hover:text-red-900"
+                        >
+                          Delete
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -398,8 +288,8 @@ export default function ArticlesAdminPage() {
       )}
 
       <ConfirmDialog
-        isOpen={showConfirmDialog}
-        onClose={() => setShowConfirmDialog(false)}
+        isOpen={scrapeConfirmOpen}
+        onClose={() => setScrapeConfirmOpen(false)}
         onConfirm={triggerScrape}
         title="Scrape Articles"
         message="This will trigger article scraping from all active sources. This may take a few moments. Continue?"
@@ -409,12 +299,23 @@ export default function ArticlesAdminPage() {
         variant="info"
       />
 
+      <ConfirmDialog
+        isOpen={deleteConfirmOpen}
+        onClose={() => setDeleteConfirmOpen(false)}
+        onConfirm={handleDelete}
+        title="Delete Article"
+        message="Are you sure you want to delete this article? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+      />
+
       <AlertDialog
-        isOpen={showAlertDialog}
-        onClose={() => setShowAlertDialog(false)}
-        title={alertConfig.title}
-        message={alertConfig.message}
-        variant={alertConfig.variant}
+        isOpen={alertOpen}
+        onClose={() => setAlertOpen(false)}
+        title={alertMessage.includes('success') ? 'Success' : 'Info'}
+        message={alertMessage}
+        variant={alertMessage.includes('success') ? 'success' : 'info'}
       />
     </div>
   );
