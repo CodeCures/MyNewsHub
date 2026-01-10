@@ -7,38 +7,7 @@ import { format } from 'date-fns';
 import Link from 'next/link';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import AlertDialog from '@/components/AlertDialog';
-
-interface Source {
-  id: number;
-  name: string;
-  slug: string;
-}
-
-interface Category {
-  id: number;
-  name: string;
-  slug: string;
-}
-
-interface Article {
-  id: number;
-  title: string;
-  description: string;
-  url: string;
-  image_url: string | null;
-  published_at: string;
-  source: Source;
-  author: string | null;
-  category: Category | null;
-  created_at: string;
-}
-
-interface PaginationMeta {
-  current_page: number;
-  last_page: number;
-  per_page: number;
-  total: number;
-}
+import type { Source, Category, Article, PaginationMeta } from '@/types';
 
 export default function ArticlesAdminPage() {
   const { token } = useAuthStore();

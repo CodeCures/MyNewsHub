@@ -10,11 +10,7 @@ import Loading from '@/components/Loading';
 import ErrorAlert from '@/components/ErrorAlert';
 import EmptyState from '@/components/EmptyState';
 import Select from 'react-select';
-
-interface SelectOption {
-  value: number | string;
-  label: string;
-}
+import type { SelectOption } from '@/types';
 
 export default function MyFeeds() {
   const router = useRouter();

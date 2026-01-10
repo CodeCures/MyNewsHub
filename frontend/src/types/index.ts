@@ -9,8 +9,20 @@ export interface User {
   updated_at: string;
 }
 
+export interface Source {
+  id: string | number;
+  name: string;
+  slug: string;
+  url?: string;
+  is_active?: boolean;
+  api_key?: string | null;
+  configuration?: any;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface Category {
-  id: string;
+  id: string | number;
   name: string;
   slug: string;
 }
@@ -22,24 +34,20 @@ export interface Author {
 }
 
 export interface Article {
-  id: string;
-  source_id: string;
-  source_name: string;
-  source?: {
-    id: string;
-    name: string;
-    slug: string;
-  };
+  id: string | number;
+  source_id?: string;
+  source_name?: string;
+  source?: Source;
   title: string;
   description: string;
-  content: string;
+  content?: string;
   author: Author | string | null;
   url: string;
   image_url: string | null;
   published_at: string;
-  category: Category | string;
-  created_at: string;
-  updated_at: string;
+  category: Category | string | null;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface PaginatedResponse<T> {
@@ -58,6 +66,13 @@ export interface PaginatedResponse<T> {
     prev: string | null;
     next: string | null;
   };
+}
+
+export interface PaginationMeta {
+  current_page: number;
+  last_page: number;
+  per_page: number;
+  total: number;
 }
 
 export interface AuthResponse {
@@ -80,4 +95,25 @@ export interface ArticleFilters {
   to_date?: string;
   page?: number;
   per_page?: number;
+}
+
+export interface SelectOption {
+  value: number | string;
+  label: string;
+}
+
+export interface KeyValuePair {
+  key: string;
+  value: string;
+}
+
+export interface SourceFormData {
+  name: string;
+  slug: string;
+  url: string;
+  api_key: string;
+  is_active: boolean;
+  articles_path: string;
+  query_params: KeyValuePair[];
+  field_map: KeyValuePair[];
 }

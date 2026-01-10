@@ -5,23 +5,9 @@ import { useRouter } from 'next/navigation';
 import { useAuthStore, usePreferencesStore } from '@/store';
 import httpClient from '@/lib/httpClient';
 import Select from 'react-select';
-
-interface Source {
-  id: number;
-  name: string;
-  slug: string;
-}
-
-interface Category {
-  id: number;
-  name: string;
-  slug: string;
-}
-
-interface SelectOption {
-  value: number | string;
-  label: string;
-}
+import Loading from '@/components/Loading';
+import ErrorAlert from '@/components/ErrorAlert';
+import type { Source, Category, SelectOption } from '@/types';
 
 export default function Preferences() {
   const router = useRouter();

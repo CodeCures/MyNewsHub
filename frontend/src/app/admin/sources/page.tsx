@@ -5,34 +5,10 @@ import { useAuthStore } from '@/store';
 import axios from 'axios';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import AlertDialog from '@/components/AlertDialog';
-
-interface Source {
-  id: string;
-  name: string;
-  slug: string;
-  url: string;
-  is_active: boolean;
-  api_key: string | null;
-  configuration: any;
-  created_at: string;
-  updated_at: string;
-}
-
-interface KeyValuePair {
-  key: string;
-  value: string;
-}
-
-interface SourceFormData {
-  name: string;
-  slug: string;
-  url: string;
-  api_key: string;
-  is_active: boolean;
-  articles_path: string;
-  query_params: KeyValuePair[];
-  field_map: KeyValuePair[];
-}
+import Loading from '@/components/Loading';
+import ErrorAlert from '@/components/ErrorAlert';
+import Modal from '@/components/Modal';
+import type { Source, KeyValuePair, SourceFormData } from '@/types';
 
 export default function SourcesAdminPage() {
   const { token } = useAuthStore();
