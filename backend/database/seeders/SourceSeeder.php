@@ -67,30 +67,26 @@ class SourceSeeder extends Seeder
                 ],
             ],
 
-            // New York Times - Extracts category from response
+            // New York Times - Top Stories API with multimedia support
             [
                 'name' => 'New York Times',
                 'slug' => 'nytimes',
                 'api_key' => env('NYTIMES_API_KEY'),
-                'url' => 'https://api.nytimes.com/svc/search/v2/articlesearch.json',
+                'url' => 'https://api.nytimes.com/svc/topstories/v2/home.json',
                 'is_active' => true,
                 'configuration' => [
                     'query_params' => [
                         'api-key' => '{api_key}',
-                        'sort' => 'newest',
-                        'page' => 0,
-                        'page_size' => 100,
                     ],
-                    'articles_path' => 'response.docs',
+                    'articles_path' => 'results',
                     'field_map' => [
-                        'title' => 'headline.main',
+                        'title' => 'title',
                         'description' => 'abstract',
-                        'url' => 'web_url',
-                        'image_url' => 'multimedia.0.url',
-                        'published_at' => 'pub_date',
-                        'author' => 'byline.original',
-                        'content' => 'lead_paragraph',
-                        'category' => 'section_name',
+                        'url' => 'url',
+                        'published_at' => 'published_date',
+                        'author' => 'byline',
+                        'content' => 'abstract',
+                        'category' => 'section',
                     ],
                 ],
             ],
