@@ -71,6 +71,7 @@ class RestApiDriver
     protected function mapFields(array $item, array $fieldMap, ?string $defaultCategory = null): ?array
     {
         try {
+
             $mapped = collect($fieldMap)->mapWithKeys(function ($sourcePath, $targetField) use ($item) {
                 $value = data_get($item, $sourcePath);
 
@@ -89,6 +90,13 @@ class RestApiDriver
                 $mapped['category'] = $defaultCategory ?? 'General';
             }
 
+            // Special handling for NYTimes multimedia
+            if ($this->source->slug === 'nytimes') {
+                $extractedImage = $this->extractNytimesImage($item);
+                if ($extractedImage) {
+                    $mapped['image_url'] = $extractedImage;
+                }
+            }
 
             if (empty($mapped['url']) || empty($mapped['title'])) {
                 return null;
@@ -98,5 +106,47 @@ class RestApiDriver
         } catch (\Exception $e) {
             return null;
         }
+    }
+
+    /**
+     * Extract image URL from NYTimes multimedia array
+     */
+    protected function extractNytimesImage(array $item): ?string
+    {
+        $multimedia = $item['multimedia'] ?? [];
+
+        if (empty($multimedia) || !is_array($multimedia)) {
+            return null;
+        }
+
+        // Prefer larger/better quality images
+        $preferredFormats = ['mediumThreeByTwo440', 'mediumThreeByTwo210', 'Normal'];
+
+        foreach ($preferredFormats as $format) {
+            foreach ($multimedia as $media) {
+                if (isset($media['format']) && $media['format'] === $format &&
+                    !empty($media['url'])) {
+                    return $media['url'];
+                }
+            }
+        }
+
+        // Fallback: find first image with absolute URL
+        foreach ($multimedia as $media) {
+            if (isset($media['type']) && strtolower($media['type']) === 'image' &&
+                !empty($media['url'])) {
+                $url = $media['url'];
+
+                // If URL is already absolute, return it
+                if (str_starts_with($url, 'http://') || str_starts_with($url, 'https://')) {
+                    return $url;
+                }
+
+                // Fallback: prepend static image server for relative URLs
+                return 'https://static01.nyt.com/' . ltrim($url, '/');
+            }
+        }
+
+        return null;
     }
 }
