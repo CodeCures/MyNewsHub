@@ -10,34 +10,16 @@ use Illuminate\Http\Request;
 
 class ArticleController extends Controller
 {
+
     /**
      * Display a listing of the resource.
      */
     public function index(Request $request)
     {
-        $query = Article::with(['source', 'category'])
-            ->when($request->keyword, fn($q) =>
-                $q->whereFullText(['title', 'description', 'content'], $request->keyword)
-            )
-            ->when($request->source, fn($q) =>
-                $q->whereHas('source', fn($sq) => $sq->where('slug', $request->source))
-            )
-            ->when($request->category, fn($q) =>
-                $q->whereHas('category', fn($cq) => $cq->where('slug', $request->category))
-            )
-            ->when($request->author, fn($q) =>
-                $q->where('author', 'like', "%{$request->author}%")
-            )
-            ->when($request->from_date, fn($q) =>
-                $q->whereDate('published_at', '>=', $request->from_date)
-            )
-            ->when($request->to_date, fn($q) =>
-                $q->whereDate('published_at', '<=', $request->to_date)
-            )
-            ->latest('published_at')
-            ->paginate($request->per_page ?? 15);
+        $query = Article::searchWhenNotEmpty($request->input('search'))
+            ->filterBy($request->only(['source', 'category', 'author', 'from_date', 'to_date']));
 
-        return new ArticleCollection($query);
+        return $this->paginatedResponse($query, $request->per_page);
     }
 
     /**
@@ -53,46 +35,24 @@ class ArticleController extends Controller
         $preferences = $request->user()->preference;
 
         if (!$preferences) {
-            return $this->index($request);
+            return response()->json([
+                'data' => [],
+                'message' => 'no preferences'
+            ]);
         }
 
-        $query = Article::with(['source', 'category'])
-            ->when($preferences->preferred_sources, fn($q) =>
-                $q->whereIn('source_id', $preferences->preferred_sources)
-            )
-            ->when($preferences->preferred_categories, fn($q) =>
-                $q->whereIn('category_id', $preferences->preferred_categories)
-            )
-            ->when($preferences->preferred_authors, fn($q) =>
-                $q->whereIn('author', $preferences->preferred_authors)
-            )
-            ->latest('published_at')
-            ->paginate($request->per_page ?? 15);
+        $query = Article::searchWhenNotEmpty($request->input('search'))
+            ->forMyPreferences($preferences)
+            ->filterBy($request->only(['source', 'category', 'author']));
 
-        return new ArticleCollection($query);
+        return $this->paginatedResponse($query, $request->per_page);
     }
 
     /**
-     * Store a newly created resource in storage.
+     * Paginate and return article collection.
      */
-    public function store(Request $request)
+    private function paginatedResponse($query, ?int $per_page)
     {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, string $id)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(string $id)
-    {
-        //
+        return new ArticleCollection($query->paginate($per_page ?? 15));
     }
 }
