@@ -3,7 +3,8 @@
 import { useEffect, useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore, usePreferencesStore } from '@/store';
-import httpClient from '@/lib/httpClient';
+import { fetchSources, fetchCategories, fetchAuthors } from './preferences.service';
+import { sourcesToOptions, categoriesToOptions, stringsToOptions } from '@/lib/utils/selectOptions';
 import Select from 'react-select';
 import Loading from '@/components/Loading';
 import ErrorAlert from '@/components/ErrorAlert';
@@ -15,8 +16,8 @@ export default function Preferences() {
   const { preferences, isLoading, error, fetchPreferences, updatePreferences } = usePreferencesStore();
   
   const [formData, setFormData] = useState({
-    preferred_sources: [] as number[],
-    preferred_categories: [] as number[],
+    preferred_sources: [] as (number | string)[],
+    preferred_categories: [] as (number | string)[],
     preferred_authors: [] as string[],
   });
   const [isSaving, setIsSaving] = useState(false);
@@ -36,17 +37,17 @@ export default function Preferences() {
       return;
     }
     fetchPreferences();
-    fetchSources();
-    fetchCategories();
-    fetchAuthors();
+    loadSources();
+    loadCategories();
+    loadAuthors();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]);
 
-  const fetchSources = async () => {
+  const loadSources = async () => {
     try {
       setIsLoadingSources(true);
-      const response = await httpClient.get('/admin/sources');
-      setSources(response.data.data || []);
+      const data = await fetchSources();
+      setSources(data);
     } catch (err) {
       console.error('Failed to fetch sources', err);
     } finally {
@@ -54,11 +55,11 @@ export default function Preferences() {
     }
   };
 
-  const fetchCategories = async () => {
+  const loadCategories = async () => {
     try {
       setIsLoadingCategories(true);
-      const response = await httpClient.get('/categories');
-      setCategories(response.data.data || []);
+      const data = await fetchCategories();
+      setCategories(data);
     } catch (err) {
       console.error('Failed to fetch categories', err);
     } finally {
@@ -66,11 +67,11 @@ export default function Preferences() {
     }
   };
 
-  const fetchAuthors = async () => {
+  const loadAuthors = async () => {
     try {
       setIsLoadingAuthors(true);
-      const response = await httpClient.get('/authors');
-      setAuthors(response.data.data || []);
+      const data = await fetchAuthors();
+      setAuthors(data);
     } catch (err) {
       console.error('Failed to fetch authors', err);
     } finally {
@@ -88,46 +89,35 @@ export default function Preferences() {
     }
   }, [preferences]);
 
-  // Convert data to react-select options
-  const categoryOptions: SelectOption[] = categories.map(cat => ({
-    value: cat.id,
-    label: cat.name,
-  }));
-
-  const sourceOptions: SelectOption[] = sources.map(src => ({
-    value: src.id,
-    label: src.name,
-  }));
-
-  const authorOptions: SelectOption[] = authors.map(author => ({
-    value: author,
-    label: author,
-  }));
+  // Generate select options
+  const sourceOptions = sourcesToOptions(sources);
+  const categoryOptions = categoriesToOptions(categories);
+  const authorOptions = stringsToOptions(authors);
 
   // Get selected values for react-select
-  const selectedCategories = categoryOptions.filter(opt => 
-    formData.preferred_categories.includes(opt.value as number)
+  const selectedSources = sourceOptions.filter(opt => 
+    formData.preferred_sources.includes(opt.value)
   );
 
-  const selectedSources = sourceOptions.filter(opt => 
-    formData.preferred_sources.includes(opt.value as number)
+  const selectedCategories = categoryOptions.filter(opt => 
+    formData.preferred_categories.includes(opt.value)
   );
 
   const selectedAuthors = authorOptions.filter(opt => 
     formData.preferred_authors.includes(opt.value as string)
   );
 
-  const handleCategoryChange = (selected: readonly SelectOption[]) => {
-    setFormData(prev => ({
-      ...prev,
-      preferred_categories: selected.map(opt => opt.value as number),
-    }));
-  };
-
   const handleSourceChange = (selected: readonly SelectOption[]) => {
     setFormData(prev => ({
       ...prev,
-      preferred_sources: selected.map(opt => opt.value as number),
+      preferred_sources: selected.map(opt => opt.value),
+    }));
+  };
+
+  const handleCategoryChange = (selected: readonly SelectOption[]) => {
+    setFormData(prev => ({
+      ...prev,
+      preferred_categories: selected.map(opt => opt.value),
     }));
   };
 

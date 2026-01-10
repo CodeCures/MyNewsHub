@@ -3,14 +3,15 @@
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore, useArticlesStore, usePreferencesStore } from '@/store';
-import httpClient from '@/lib/httpClient';
+import { fetchUserSources, fetchUserCategories, buildFeedFilters } from './feeds.service';
+import { sourcesToOptions, categoriesToOptions, stringsToOptions } from '@/lib/utils/selectOptions';
 import ArticleCard from '@/components/ArticleCard';
 import Pagination from '@/components/Pagination';
 import Loading from '@/components/Loading';
 import ErrorAlert from '@/components/ErrorAlert';
 import EmptyState from '@/components/EmptyState';
 import Select from 'react-select';
-import type { SelectOption } from '@/types';
+import type { SelectOption, Source, Category } from '@/types';
 
 export default function MyFeeds() {
   const router = useRouter();
@@ -28,8 +29,8 @@ export default function MyFeeds() {
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // Options from user preferences
-  const [sources, setSources] = useState<Array<{ id: number; name: string }>>([]);
-  const [categories, setCategories] = useState<Array<{ id: number; name: string }>>([]);
+  const [sources, setSources] = useState<Source[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [authors, setAuthors] = useState<string[]>([]);
 
   useEffect(() => {
@@ -74,52 +75,33 @@ export default function MyFeeds() {
   const loadFilterOptions = async () => {
     if (!preferences) return;
 
-    // Load sources
-    if (preferences.preferred_sources?.length > 0) {
-      try {
-        const response = await httpClient.get('/admin/sources');
-        const allSources = response.data.data || [];
-        const userSources = allSources.filter((src: any) => 
-          preferences.preferred_sources.includes(src.id)
-        );
-        setSources(userSources);
-      } catch (err) {
-        console.error('Failed to fetch sources', err);
-      }
-    }
+    try {
+      const [userSources, userCategories] = await Promise.all([
+        fetchUserSources(preferences.preferred_sources || []),
+        fetchUserCategories(preferences.preferred_categories || []),
+      ]);
 
-    // Load categories
-    if (preferences.preferred_categories?.length > 0) {
-      try {
-        const response = await httpClient.get('/categories');
-        const allCategories = response.data.data || [];
-        const userCategories = allCategories.filter((cat: any) => 
-          preferences.preferred_categories.includes(cat.id)
-        );
-        setCategories(userCategories);
-      } catch (err) {
-        console.error('Failed to fetch categories', err);
+      setSources(userSources);
+      setCategories(userCategories);
+      
+      if (preferences.preferred_authors?.length > 0) {
+        setAuthors(preferences.preferred_authors);
       }
-    }
-
-    // Set authors from preferences
-    if (preferences.preferred_authors?.length > 0) {
-      setAuthors(preferences.preferred_authors);
+    } catch (err) {
+      console.error('Failed to load filter options', err);
     }
   };
 
   const fetchPersonalizedFeedWithFilters = async (currentPage: number) => {
-    const filters: any = { page: currentPage };
-    if (debouncedSearch) filters.search = debouncedSearch;
-    if (selectedSource) {
-      const source = sources.find(s => s.id === selectedSource);
-      if (source) filters.source = source.id;
-    }
-    if (selectedCategory) {
-      const category = categories.find(c => c.id === selectedCategory);
-      if (category) filters.category = category.id;
-    }
-    if (selectedAuthor) filters.author = selectedAuthor;
+    const filters = buildFeedFilters(
+      debouncedSearch,
+      selectedSource,
+      selectedCategory,
+      selectedAuthor,
+      sources,
+      categories,
+      currentPage
+    );
     
     await fetchPersonalizedFeed(currentPage, filters);
   };
@@ -129,20 +111,9 @@ export default function MyFeeds() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const sourceOptions: SelectOption[] = sources.map(src => ({
-    value: src.id,
-    label: src.name,
-  }));
-
-  const categoryOptions: SelectOption[] = categories.map(cat => ({
-    value: cat.id,
-    label: cat.name,
-  }));
-
-  const authorOptions: SelectOption[] = authors.map(author => ({
-    value: author,
-    label: author,
-  }));
+  const sourceOptions = sourcesToOptions(sources);
+  const categoryOptions = categoriesToOptions(categories);
+  const authorOptions = stringsToOptions(authors);
 
   const handleClearFilters = () => {
     setSearch('');
@@ -184,7 +155,7 @@ export default function MyFeeds() {
             
             <Select
               options={sourceOptions}
-              value={sourceOptions.find(opt => opt.value === selectedSource) || null}
+              value={findSelectedOption(sourceOptions, selectedSource)}
               onChange={(selected) => {
                 setSelectedSource(selected ? selected.value as number : null);
                 setPage(1);
@@ -198,7 +169,7 @@ export default function MyFeeds() {
 
             <Select
               options={categoryOptions}
-              value={categoryOptions.find(opt => opt.value === selectedCategory) || null}
+              value={findSelectedOption(categoryOptions, selectedCategory)}
               onChange={(selected) => {
                 setSelectedCategory(selected ? selected.value as number : null);
                 setPage(1);
@@ -212,7 +183,7 @@ export default function MyFeeds() {
 
             <Select
               options={authorOptions}
-              value={authorOptions.find(opt => opt.value === selectedAuthor) || null}
+              value={findSelectedOption(authorOptions, selectedAuthor)}
               onChange={(selected) => {
                 setSelectedAuthor(selected ? selected.value as string : null);
                 setPage(1);
