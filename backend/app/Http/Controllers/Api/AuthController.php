@@ -22,9 +22,13 @@ class AuthController extends Controller
         ]);
 
         $token = $user->createToken('auth-token')->plainTextToken;
+        
+        $userData = $user->toArray();
+        $userData['roles'] = $user->getRoleNames()->toArray();
+        $userData['permissions'] = $user->getPermissionNames()->toArray();
 
         return response()->json([
-            'user' => $user,
+            'user' => $userData,
             'token' => $token,
         ], 201);
     }
@@ -40,9 +44,13 @@ class AuthController extends Controller
         }
 
         $token = $user->createToken('auth-token')->plainTextToken;
+        
+        $userData = $user->toArray();
+        $userData['roles'] = $user->getRoleNames()->toArray();
+        $userData['permissions'] = $user->getPermissionNames()->toArray();
 
         return response()->json([
-            'user' => $user,
+            'user' => $userData,
             'token' => $token,
         ]);
     }
@@ -56,6 +64,11 @@ class AuthController extends Controller
 
     public function me(Request $request): JsonResponse
     {
-        return response()->json($request->user());
+        $user = $request->user();
+        $userData = $user->toArray();
+        $userData['roles'] = $user->getRoleNames()->toArray();
+        $userData['permissions'] = $user->getPermissionNames()->toArray();
+        
+        return response()->json($userData);
     }
 }
