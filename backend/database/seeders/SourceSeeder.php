@@ -50,7 +50,7 @@ class SourceSeeder extends Seeder
                 'configuration' => [
                     'query_params' => [
                         'api-key' => '{api_key}',
-                        'show-fields' => 'trailText,thumbnail,byline',
+                        'show-fields' => 'trailText,thumbnail,byline,body',
                         'page-size' => 100,
                     ],
                     'articles_path' => 'response.results',
@@ -61,7 +61,7 @@ class SourceSeeder extends Seeder
                         'image_url' => 'fields.thumbnail',
                         'published_at' => 'webPublicationDate',
                         'author' => 'fields.byline',
-                        'content' => 'fields.trailText',
+                        'content' => 'fields.body',
                         'category' => 'sectionName',
                     ],
                 ],
