@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useAuthenticatedHttpClient } from '@/hooks/useAuthenticatedHttpClient';
 import httpClient from '@/lib/httpClient';
 import type { Article, PaginationMeta, Source, Category } from '@/types';
 import { useDebouncedValue } from '@/utils/debounce';
@@ -9,6 +10,7 @@ interface UseArticlesOptions {
   enableFilters?: boolean;
   enableScraping?: boolean;
   enableDelete?: boolean;
+  requireAuth?: boolean; // New flag to determine if auth is required
 }
 
 interface ArticleFilters {
@@ -26,7 +28,12 @@ export function useArticles(options: UseArticlesOptions = {}) {
     enableFilters = true,
     enableScraping = false,
     enableDelete = false,
+    requireAuth = false, // Default to false for public pages
   } = options;
+
+  // Only use auth hook if required
+  const auth = requireAuth ? useAuthenticatedHttpClient() : { isLoading: false, isAuthenticated: true };
+  const { isLoading: authLoading, isAuthenticated } = auth;
 
   // Data states
   const [articles, setArticles] = useState<Article[]>([]);
@@ -59,29 +66,33 @@ export function useArticles(options: UseArticlesOptions = {}) {
 
   // Fetch articles when filters change
   useEffect(() => {
-    if (autoFetch) {
+    if (autoFetch && !authLoading && isAuthenticated) {
       fetchArticlesData();
     }
-  }, [currentPage, debouncedSearch, selectedSource, selectedCategory, selectedAuthor, endpoint]);
+  }, [currentPage, debouncedSearch, selectedSource, selectedCategory, selectedAuthor, endpoint, authLoading, isAuthenticated]);
 
   // Load filter options
   useEffect(() => {
-    if (enableFilters) {
+    if (enableFilters && requireAuth && !authLoading && isAuthenticated) {
       loadFilterOptions();
     }
-  }, [enableFilters]);
+  }, [enableFilters, requireAuth, authLoading, isAuthenticated]);
 
   const loadFilterOptions = async () => {
     try {
-      const [sourcesRes, categoriesRes, authorsRes] = await Promise.all([
-        httpClient.get('/admin/sources'),
-        httpClient.get('/categories'),
-        httpClient.get('/authors'),
+      const { sourceService } = await import('@/services/sourceService');
+      const { categoryService } = await import('@/services/categoryService');
+      const { authorService } = await import('@/services/authorService');
+      
+      const [sources, categories, authors] = await Promise.all([
+        sourceService.getAll(),
+        categoryService.getAll(),
+        authorService.getAll(),
       ]);
       
-      setSources(sourcesRes.data.data || []);
-      setCategories(categoriesRes.data.data || []);
-      setAuthors(authorsRes.data.data || []);
+      setSources(sources);
+      setCategories(categories);
+      setAuthors(authors);
     } catch (err) {
       console.error('Failed to fetch filter options', err);
     }

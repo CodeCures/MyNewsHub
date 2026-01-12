@@ -1,8 +1,5 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuthStore } from '@/store';
 import Link from 'next/link';
 
 export default function AdminLayout({
@@ -10,25 +7,6 @@ export default function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const router = useRouter();
-  const { user, isAuthenticated } = useAuthStore();
-
-  useEffect(() => {
-    if (!isAuthenticated) {
-      router.push('/auth/login?redirect=/admin');
-      return;
-    }
-
-    // Check if user has admin role
-    if (user && !user.roles?.includes('admin')) {
-      router.push('/');
-    }
-  }, [isAuthenticated, user, router]);
-
-  if (!isAuthenticated || !user || !user.roles?.includes('admin')) {
-    return null;
-  }
-
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 py-8">

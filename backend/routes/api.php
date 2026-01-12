@@ -17,14 +17,16 @@ Route::prefix('/auth')->group(function(){
     Route::post('/login', [AuthController::class, 'login']);
 });
 
+// Public routes
 Route::get('/articles', [ArticleController::class, 'index']);
 Route::get('/articles/{article}', [ArticleController::class, 'show']);
 Route::get('/categories', [CategoryController::class, 'index']);
 Route::get('/authors', AuthorController::class);
 
-Route::middleware('auth:sanctum')->group(function () {
+// Protected routes using web guard for session-based auth
+Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/auth/logout', [AuthController::class, 'logout']);
-    Route::get('/me', [AuthController::class, 'me']);
+    Route::get('/auth/user', [AuthController::class, 'me']);
 
     Route::get('/articles/personalized/feed', [ArticleController::class, 'personalized']);
 

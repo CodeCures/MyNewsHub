@@ -8,6 +8,7 @@ use App\Http\Requests\RegisterRequest;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
@@ -21,6 +22,7 @@ class AuthController extends Controller
             'password' => Hash::make($request->password),
         ]);
 
+        // Generate Sanctum token
         $token = $user->createToken('auth-token')->plainTextToken;
         
         $userData = $user->toArray();
@@ -29,7 +31,8 @@ class AuthController extends Controller
 
         return response()->json([
             'user' => $userData,
-            'token' => $token,
+            'access_token' => $token,
+            'token_type' => 'Bearer',
         ], 201);
     }
 
@@ -43,6 +46,10 @@ class AuthController extends Controller
             ]);
         }
 
+        // Revoke all existing tokens for this user
+        $user->tokens()->delete();
+        
+        // Generate new Sanctum token
         $token = $user->createToken('auth-token')->plainTextToken;
         
         $userData = $user->toArray();
@@ -51,12 +58,14 @@ class AuthController extends Controller
 
         return response()->json([
             'user' => $userData,
-            'token' => $token,
+            'access_token' => $token,
+            'token_type' => 'Bearer',
         ]);
     }
 
     public function logout(Request $request): JsonResponse
     {
+        // Revoke current access token
         $request->user()->currentAccessToken()->delete();
 
         return response()->json(['message' => 'Logged out successfully']);

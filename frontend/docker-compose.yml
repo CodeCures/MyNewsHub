@@ -9,6 +9,9 @@ services:
       - NODE_ENV=development
       - NEXT_TELEMETRY_DISABLED=1
       - NEXT_PUBLIC_API_BASE_URL=http://localhost:8080/api
+      - API_URL=http://mynewshub-webserver:8080/api
+      - NEXTAUTH_URL=http://localhost:3000
+      - NEXTAUTH_SECRET=e30So6R7VFFaU9Gojhd6zDWpSWtYPO/zDxevika39uM=
       - WATCHPACK_POLLING=true
       - CHOKIDAR_USEPOLLING=true
     volumes:
@@ -20,6 +23,7 @@ services:
     tty: true
     networks:
       - mynewshub-network
+      - backend_mynewshub-network
 
 volumes:
   node_modules:
@@ -27,3 +31,5 @@ volumes:
 networks:
   mynewshub-network:
     driver: bridge
+  backend_mynewshub-network:
+    external: true

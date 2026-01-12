@@ -1,56 +1,17 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import type { User, Article, PaginatedResponse, UserPreferences } from '@/types';
-import { authApi, articlesApi, preferencesApi } from '@/lib/api';
+import type { Article, PaginatedResponse, UserPreferences } from '@/types';
+import { articlesApi, preferencesApi } from '@/lib/api';
 
+// Auth is handled by NextAuth - we only track isAuthenticated from client-side session
 interface AuthState {
-  user: User | null;
-  token: string | null;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (name: string, email: string, password: string, passwordConfirmation: string) => Promise<void>;
-  logout: () => Promise<void>;
-  setUser: (user: User | null) => void;
-  setToken: (token: string | null) => void;
+  setAuthenticated: (isAuthenticated: boolean) => void;
 }
 
-export const useAuthStore = create<AuthState>()(
-  persist(
-    (set) => ({
-      user: null,
-      token: null,
-      isAuthenticated: false,
-
-      login: async (email, password) => {
-        const response = await authApi.login(email, password);
-        localStorage.setItem('auth_token', response.token);
-        set({ user: response.user, token: response.token, isAuthenticated: true });
-      },
-
-      register: async (name, email, password, passwordConfirmation) => {
-        const response = await authApi.register(name, email, password, passwordConfirmation);
-        localStorage.setItem('auth_token', response.token);
-        set({ user: response.user, token: response.token, isAuthenticated: true });
-      },
-
-      logout: async () => {
-        try {
-          await authApi.logout();
-        } finally {
-          localStorage.removeItem('auth_token');
-          set({ user: null, token: null, isAuthenticated: false });
-        }
-      },
-
-      setUser: (user) => set({ user, isAuthenticated: !!user }),
-      setToken: (token) => set({ token }),
-    }),
-    {
-      name: 'auth-storage',
-      partialize: (state) => ({ user: state.user, token: state.token, isAuthenticated: state.isAuthenticated }),
-    }
-  )
-);
+export const useAuthStore = create<AuthState>()((set) => ({
+  isAuthenticated: false,
+  setAuthenticated: (isAuthenticated) => set({ isAuthenticated }),
+}));
 
 interface ArticlesState {
   articles: Article[];

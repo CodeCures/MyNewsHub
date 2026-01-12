@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, FormEvent, useEffect } from 'react';
+import { useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useAuthStore } from '@/store';
+import { signIn } from 'next-auth/react';
+import httpClient from '@/lib/httpClient';
 
 export default function Register() {
   const router = useRouter();
-  const { register, isAuthenticated } = useAuthStore();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -16,12 +16,6 @@ export default function Register() {
   });
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      router.push('/');
-    }
-  }, [isAuthenticated, router]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -40,10 +34,31 @@ export default function Register() {
     setIsLoading(true);
 
     try {
-      await register(formData.name, formData.email, formData.password, formData.password_confirmation);
-      router.push('/');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to register');
+      // Register the user
+      await httpClient.post('/auth/register', {
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+        password_confirmation: formData.password_confirmation,
+      });
+
+      // After successful registration, sign in with NextAuth
+      const result = await signIn('credentials', {
+        email: formData.email,
+        password: formData.password,
+        redirect: false,
+      });
+
+      if (result?.error) {
+        setError('Account created but failed to sign in. Please try logging in.');
+        return;
+      }
+
+      // Redirect to my-feeds
+      router.push('/my-feeds');
+      router.refresh();
+    } catch (err: any) {
+      setError(err.message || 'Failed to register');
     } finally {
       setIsLoading(false);
     }

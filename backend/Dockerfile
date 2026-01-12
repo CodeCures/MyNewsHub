@@ -17,8 +17,12 @@ RUN apk add --no-cache \
 # Install PHP extensions
 RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd zip
 
-# Install Redis extension
-RUN apk add --no-cache --virtual .build-deps $PHPIZE_DEPS \
+# Install Redis extension (phpredis)
+RUN apk add --no-cache --virtual .build-deps \
+        autoconf \
+        g++ \
+        make \
+    && pecl channel-update pecl.php.net \
     && pecl install redis \
     && docker-php-ext-enable redis \
     && apk del .build-deps
@@ -35,6 +39,9 @@ RUN composer install --no-interaction --no-dev --optimize-autoloader
 RUN chown -R www-data:www-data /app \
     && chmod -R 755 /app/storage \
     && chmod -R 755 /app/bootstrap/cache
+
+# Copy PHP-FPM configuration
+COPY docker/php/www.conf /usr/local/etc/php-fpm.d/zzz-custom.conf
 
 # Copy entrypoint script
 COPY docker-entrypoint.sh /usr/local/bin/

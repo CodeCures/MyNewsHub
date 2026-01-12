@@ -1,17 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useAuthStore } from '@/store';
-import axios from 'axios';
+import { useAuthenticatedHttpClient } from '@/hooks/useAuthenticatedHttpClient';
+import httpClient from '@/lib/httpClient';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import AlertDialog from '@/components/AlertDialog';
-import Loading from '@/components/Loading';
-import ErrorAlert from '@/components/ErrorAlert';
-import Modal from '@/components/Modal';
 import type { Source, KeyValuePair, SourceFormData } from '@/types';
 
 export default function SourcesAdminPage() {
-  const { token } = useAuthStore();
+  const { isLoading: authLoading, isAuthenticated } = useAuthenticatedHttpClient();
   const [sources, setSources] = useState<Source[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -38,15 +35,15 @@ export default function SourcesAdminPage() {
   });
 
   useEffect(() => {
-    fetchSources();
-  }, []);
+    if (!authLoading && isAuthenticated) {
+      fetchSources();
+    }
+  }, [authLoading, isAuthenticated]);
 
   const fetchSources = async () => {
     try {
       setIsLoading(true);
-      const response = await axios.get(`${process.env.NEXT_PUBLIC_API_BASE_URL}/admin/sources`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const response = await httpClient.get('/admin/sources');
       setSources(response.data.data);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to fetch sources');
@@ -144,16 +141,14 @@ export default function SourcesAdminPage() {
       };
 
       if (editingSource) {
-        await axios.put(
-          `${process.env.NEXT_PUBLIC_API_BASE_URL}/admin/sources/${editingSource.id}`,
-          payload,
-          { headers: { Authorization: `Bearer ${token}` } }
+        await httpClient.put(
+          `/admin/sources/${editingSource.id}`,
+          payload
         );
       } else {
-        await axios.post(
-          `${process.env.NEXT_PUBLIC_API_BASE_URL}/admin/sources`,
-          payload,
-          { headers: { Authorization: `Bearer ${token}` } }
+        await httpClient.post(
+          '/admin/sources',
+          payload
         );
       }
 
@@ -168,10 +163,9 @@ export default function SourcesAdminPage() {
 
   const toggleSourceStatus = async (id: string, currentStatus: boolean) => {
     try {
-      await axios.patch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/admin/sources/${id}`,
-        { is_active: !currentStatus },
-        { headers: { Authorization: `Bearer ${token}` } }
+      await httpClient.patch(
+        `/admin/sources/${id}`,
+        { is_active: !currentStatus }
       );
       await fetchSources();
     } catch (err: any) {
@@ -185,9 +179,7 @@ export default function SourcesAdminPage() {
     setShowDeleteConfirm(false);
 
     try {
-      await axios.delete(`${process.env.NEXT_PUBLIC_API_BASE_URL}/admin/sources/${sourceToDelete}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await httpClient.delete(`/admin/sources/${sourceToDelete}`);
       
       setAlertConfig({
         title: 'Success',

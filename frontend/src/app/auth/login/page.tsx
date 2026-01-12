@@ -1,36 +1,69 @@
 'use client';
 
-import { useState, FormEvent, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, FormEvent } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { useAuthStore } from '@/store';
+import { signIn } from 'next-auth/react';
+import toast from 'react-hot-toast';
 
 export default function Login() {
   const router = useRouter();
-  const { login, isAuthenticated } = useAuthStore();
+  const searchParams = useSearchParams();
+  
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   });
-  const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
+  // Check for error in URL params (NextAuth redirects with error)
   useEffect(() => {
-    if (isAuthenticated) {
-      router.push('/');
+    const errorParam = searchParams.get('error');
+    if (errorParam) {
+      const decodedError = decodeURIComponent(errorParam);
+      setError(decodedError);
+      toast.error(decodedError);
     }
-  }, [isAuthenticated, router]);
+  }, [searchParams]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    setError('');
     setIsLoading(true);
+    setError(null);
 
     try {
-      await login(formData.email, formData.password);
-      router.push('/');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to login');
+      const result = await signIn('credentials', {
+        email: formData.email,
+        password: formData.password,
+        redirect: false,
+      });
+
+      if (result?.error) {
+        // NextAuth v5 returns error code, but error message is in the URL params
+        // Try to get the actual error message from the result
+        let errorMessage = result.error;
+        
+        // Check if error is a generic code and try to parse actual message
+        if (result.error === 'CredentialsSignin') {
+          errorMessage = 'The provided credentials are incorrect.';
+        }
+        
+        console.error('Sign in error:', result);
+        setError(errorMessage);
+        toast.error(errorMessage);
+        return;
+      }
+
+      // Redirect to the intended page or home
+      const redirect = searchParams.get('redirect') || '/my-feeds';
+      router.push(redirect);
+      router.refresh();
+    } catch (err: any) {
+      const errorMessage = err.message || 'Failed to login. Please check your credentials.';
+      console.error('Login error:', err);
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }
