@@ -2,28 +2,23 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useAuthStore } from '@/store';
-import { useEffect, useState } from 'react';
+import { useSession, signOut } from 'next-auth/react';
+import { useState } from 'react';
 
 export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { isAuthenticated, user, logout } = useAuthStore();
-  const [mounted, setMounted] = useState(false);
+  const { data: session, status } = useSession();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
   const handleLogout = async () => {
-    await logout();
+    await signOut({ redirect: false });
     router.push('/');
+    router.refresh();
   };
 
-  if (!mounted) {
-    return null;
-  }
+  const isAuthenticated = !!session?.user;
+  const user = session?.user;
 
   return (
     <nav className="bg-white border-b border-gray-200 sticky top-0 z-50">
@@ -64,7 +59,7 @@ export default function Navbar() {
                 Preferences
               </Link>
             )}
-            {isAuthenticated && user?.roles?.includes('admin') && (
+            {isAuthenticated && user?.roles?.some(role => role === 'admin' || role === 'super-admin') && (
               <Link
                 href="/admin/sources"
                 className={`${
