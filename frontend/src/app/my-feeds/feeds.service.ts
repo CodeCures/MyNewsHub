@@ -1,4 +1,5 @@
-import httpClient from '@/lib/httpClient';
+import { sourceService } from '@/services/sourceService';
+import { categoryService } from '@/services/categoryService';
 import type { Source, Category } from '@/types';
 
 export interface FeedFilters {
@@ -15,8 +16,7 @@ export interface FeedFilters {
 export async function fetchUserSources(preferredSourceIds: string[]): Promise<Source[]> {
   if (!preferredSourceIds?.length) return [];
   
-  const response = await httpClient.get('/admin/sources');
-  const allSources = response.data.data || [];
+  const allSources = await sourceService.getAll();
   
   return allSources.filter((src: Source) => 
     preferredSourceIds.includes(String(src.id))
@@ -29,8 +29,7 @@ export async function fetchUserSources(preferredSourceIds: string[]): Promise<So
 export async function fetchUserCategories(preferredCategoryIds: string[]): Promise<Category[]> {
   if (!preferredCategoryIds?.length) return [];
   
-  const response = await httpClient.get('/categories');
-  const allCategories = response.data.data || [];
+  const allCategories = await categoryService.getAll();
   
   return allCategories.filter((cat: Category) => 
     preferredCategoryIds.includes(String(cat.id))
